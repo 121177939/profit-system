@@ -2744,10 +2744,36 @@ const LOCAL_KEY = "orderProfitData";
 const PIN_KEY = "cloudSyncPIN";
 
 // ===================== === Supabase Auth账号系统（新增，不改原UI） =====================
+
+// ---- Supabase SDK 载入兜底（解决某些地区 jsdelivr 不可用导致登录无反应） ----
+function __loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=()=>resolve(true);
+    s.onerror=()=>reject(new Error("load failed: "+src));
+    document.head.appendChild(s);
+  });
+}
+async function __ensureSupabaseSDK(){
+  if(window.supabase && window.supabase.createClient) return true;
+  const cands = [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js",
+    "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.49.1/umd/supabase.js"
+  ];
+  for(const u of cands){
+    try{
+      await __loadScriptOnce(u);
+      if(window.supabase && window.supabase.createClient) return true;
+    }catch(e){}
+  }
+  return false;
+}
+// ---------------------------------------------------------------------------
+
 const ADMIN_EMAIL = "912872449@qq.com";
-const sb = (window.supabase && window.supabase.createClient)
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-  : null;
+let sb = null;
 
 let __currentUser = null;
 let __loginEnabled = false;
@@ -2784,13 +2810,25 @@ function amStatus(t){
   if(el) el.textContent = t;
 }
 
+async function initSb(){
+  if(sb) return sb;
+  const ok = await __ensureSupabaseSDK();
+  if(!ok){
+    amMsg("Supabase 登录模块加载失败：请检查网络/CDN（可尝试换网络或开代理）");
+    return null;
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return sb;
+}
+
 async function refreshAuth(){
-  if(!sb){
-    amStatus("未加载账号组件");
+  const client = await initSb();
+  if(!client){
+    amStatus("账号组件加载失败");
     setFeatureLock(true);
     return;
   }
-  const { data: { user } } = await sb.auth.getUser();
+  const { data: { user } } = await client.auth.getUser();
   __currentUser = user || null;
 
   if(!__currentUser){
@@ -2805,7 +2843,7 @@ async function refreshAuth(){
   // 记录/更新 profiles，并检查 enabled
   const ok = await ensureProfileAndCheckEnabled(__currentUser);
   if(!ok){
-    await sb.auth.signOut();
+    { const client = await initSb(); if(client) await client.auth.signOut(); }
     __currentUser = null;
     __loginEnabled = false;
     amStatus("已退出");
@@ -2832,7 +2870,9 @@ async function refreshAuth(){
 }
 
 async function getAccessToken(){
-  const { data: { session } } = await sb.auth.getSession();
+  const client = await initSb();
+  if(!client) return null;
+  const { data: { session } } = await client.auth.getSession();
   return session?.access_token || null;
 }
 
@@ -2976,7 +3016,9 @@ function bindAccountUI(){
     const email = (document.getElementById("amEmail")?.value||"").trim();
     const pass  = (document.getElementById("amPass")?.value||"");
     if(!email || !pass) return amMsg("请输入邮箱和密码");
-    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    const client = await initSb();
+    if(!client) return;
+    const { error } = await client.auth.signInWithPassword({ email, password: pass });
     if(error) return amMsg(error.message||String(error));
     await refreshAuth();
   };
@@ -2985,13 +3027,15 @@ function bindAccountUI(){
     const email = (document.getElementById("amEmail")?.value||"").trim();
     const pass  = (document.getElementById("amPass")?.value||"");
     if(!email || !pass) return amMsg("请输入邮箱和密码");
-    const { error } = await sb.auth.signUp({ email, password: pass });
+    const client = await initSb();
+    if(!client) return;
+    const { error } = await client.auth.signUp({ email, password: pass });
     if(error) return amMsg(error.message||String(error));
     amMsg("注册成功：如果你开启了邮箱验证，请去邮箱确认后再登录。", true);
   };
   if(out) out.onclick = async ()=>{
     amMsg("");
-    await sb.auth.signOut();
+    { const client = await initSb(); if(client) await client.auth.signOut(); }
     await refreshAuth();
   };
   if(refresh) refresh.onclick = loadAdminList;
@@ -3005,11 +3049,14 @@ function bindAccountUI(){
 (function initAuthLock(){
   try{
     bindAccountUI();
+    // 默认锁定：未登录不允许保存/新增/导入/导出
     setFeatureLock(true);
-    if(sb){
-      sb.auth.onAuthStateChange(()=>refreshAuth());
+    // 初始化 Supabase SDK 并监听登录状态
+    initSb().then((client)=>{
+      if(!client) return;
+      client.auth.onAuthStateChange(()=>refreshAuth());
       refreshAuth();
-    }
+    });
   }catch(e){}
 })();
 // ===================== === Supabase Auth账号系统 结束 =====================
