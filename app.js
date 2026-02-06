@@ -1,17 +1,19 @@
-控制台.日志("app.js 加载成功");
+控制台.日志("app.js 加载");
 
-// 设备码生成（最基础）
-函数 获取或创建设备令牌() {
-  常量 键 = "设备令牌_v1";
-  让 t = localStorage.getItem(KEY);
-  如果 (!是) {
-    t = 加密.生成随机UUID();
-    localStorage.setItem(键, 值);
+// 创建或读取设备令牌 (安全 JS, 无中文关键字)
+getOrCreateDeviceToken getOrCreateDeviceToken 函数 () {
+  钥匙钥匙    =   "device_token_v1";
+  tt    =   localStorage.getItem(钥匙);
+  如果 (!t) {
+    t   =   (加密货币   &&   加密货币.随机 UUID UUID)   ?   加密货币.随机 Uuid Uuid()   :   弦乐(日期.现在())   +   "_"   +   数学.随机();
+    localStorage.setItem(钥匙,  t);
   }
-  返回 真;
+  返回 t;
 }
 
-文档.主体.插入相邻HTML(
-  "结束前",
-  "<p>设备令牌: <b>" + getOrCreateDeviceToken() + "</b></p>"
-);
+// 简单的渲染 (避免任何翻译问题)
+文件.addEventListener(“DOMContentLoaded” ,   ()   =>   {
+  pp    =   文件.createElement("p");
+  p.textContent   =   “设备令牌:”:”   +   getOrCreateDeviceToken();
+  文件.身体.appendChild(p);
+});
