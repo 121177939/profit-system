@@ -2796,6 +2796,33 @@ function _escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
+
+function _ensureWatermark(email, deviceToken){
+  try{
+    const id = "internalWatermark";
+    let el = document.getElementById(id);
+    if(!el){
+      el = document.createElement("div");
+      el.id = id;
+      el.style.position = "fixed";
+      el.style.right = "10px";
+      el.style.bottom = "10px";
+      el.style.zIndex = "9999";
+      el.style.opacity = "0.65";
+      el.style.fontSize = "12px";
+      el.style.pointerEvents = "none";
+      el.style.background = "rgba(0,0,0,0.25)";
+      el.style.color = "#fff";
+      el.style.padding = "6px 8px";
+      el.style.borderRadius = "8px";
+      el.style.backdropFilter = "blur(2px)";
+      document.body.appendChild(el);
+    }
+    const tail = (deviceToken||"").slice(-6);
+    el.textContent = `${email || ""} • ${tail} • ${new Date().toLocaleString()}`;
+  }catch(e){}
+}
+
 async function _gateMain(){
   // 防止旧浏览器缺 supabase-js
   if(!window.supabase || !window.supabase.createClient){
@@ -2804,6 +2831,168 @@ async function _gateMain(){
   }
 
   const sb = window.supabase.createClient(AUTH_SUPABASE_URL, AUTH_SUPABASE_KEY);
+  // 管理员：内部系统后台（审批/封禁/一人一机-批准即换机）
+  const _admin = {
+    inited:false,
+    overlayId:"adminOverlay",
+    btnId:"adminBtn",
+    async list(){
+      // 优先使用 RPC（更安全、更像内部系统）
+      const { data, error } = await sb.rpc("admin_list_devices", { limit_count: 200 });
+      if(error) throw error;
+      return data || [];
+    },
+    async approve(deviceId){
+      const { error } = await sb.rpc("admin_approve_device", { p_device_id: deviceId });
+      if(error) throw error;
+    },
+    async block(deviceId){
+      const { error } = await sb.rpc("admin_block_device", { p_device_id: deviceId });
+      if(error) throw error;
+    }
+  };
+
+  const _ensureAdminButton = () => {
+    if(document.getElementById(_admin.btnId)) return;
+    const btn = document.createElement("button");
+    btn.id = _admin.btnId;
+    btn.textContent = "管理";
+    btn.style.position = "fixed";
+    btn.style.left = "10px";
+    btn.style.bottom = "10px";
+    btn.style.zIndex = "10000";
+    btn.style.padding = "10px 12px";
+    btn.style.borderRadius = "10px";
+    btn.style.border = "none";
+    btn.style.background = "#2c3e50";
+    btn.style.color = "#fff";
+    btn.style.fontWeight = "700";
+    btn.style.boxShadow = "0 8px 18px rgba(0,0,0,0.18)";
+    btn.onclick = () => _openAdminPanel().catch(e=>alert(e.message||String(e)));
+    document.body.appendChild(btn);
+  };
+
+  const _openAdminPanel = async () => {
+    let ov = document.getElementById(_admin.overlayId);
+    if(!ov){
+      ov = document.createElement("div");
+      ov.id = _admin.overlayId;
+      ov.style.position = "fixed";
+      ov.style.left = "0";
+      ov.style.top = "0";
+      ov.style.width = "100%";
+      ov.style.height = "100%";
+      ov.style.zIndex = "20000";
+      ov.style.background = "rgba(0,0,0,0.55)";
+      ov.style.display = "flex";
+      ov.style.alignItems = "center";
+      ov.style.justifyContent = "center";
+      ov.innerHTML = `
+        <div style="width:min(980px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:14px 14px 10px 14px;font-family:Segoe UI,Microsoft YaHei,sans-serif">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-size:16px;font-weight:800">设备审批后台</div>
+              <div style="font-size:12px;opacity:.75;margin-top:2px">批准 = 只留最新一台（旧设备会被自动封禁）</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="adminSearch" placeholder="搜索：邮箱/设备码后6位" style="padding:8px 10px;border:1px solid #ddd;border-radius:10px;width:240px">
+              <button id="adminRefresh" style="padding:8px 10px;border:none;border-radius:10px;background:#34495e;color:#fff;font-weight:700">刷新</button>
+              <button id="adminClose" style="padding:8px 10px;border:none;border-radius:10px;background:#e74c3c;color:#fff;font-weight:700">关闭</button>
+            </div>
+          </div>
+          <div id="adminErr" style="display:none;margin-top:10px;padding:10px;border-radius:12px;background:#fff3f3;color:#b91c1c;font-size:12px"></div>
+          <div id="adminTableWrap" style="margin-top:10px"></div>
+          <div style="margin-top:10px;font-size:12px;opacity:.8">
+            若提示 RPC 不存在：请在 Supabase SQL Editor 运行 <code>INTERNAL_SETUP.sql</code>（我已放在压缩包中）。
+          </div>
+        </div>
+      `;
+      ov.addEventListener("click", (e)=>{ if(e.target===ov) ov.remove(); });
+      document.body.appendChild(ov);
+      ov.querySelector("#adminClose").onclick = ()=>ov.remove();
+      ov.querySelector("#adminRefresh").onclick = ()=>_renderAdminTable().catch(e=>_adminShowErr(e));
+      ov.querySelector("#adminSearch").oninput = ()=>_renderAdminTable().catch(e=>_adminShowErr(e));
+    }
+
+    await _renderAdminTable();
+  };
+
+  const _adminShowErr = (e) => {
+    const ov = document.getElementById(_admin.overlayId);
+    if(!ov) return;
+    const box = ov.querySelector("#adminErr");
+    box.style.display = "block";
+    box.textContent = (e && (e.message||e.toString())) || "未知错误";
+  };
+
+  const _renderAdminTable = async () => {
+    const ov = document.getElementById(_admin.overlayId);
+    if(!ov) return;
+    const wrap = ov.querySelector("#adminTableWrap");
+    const q = (ov.querySelector("#adminSearch").value||"").trim().toLowerCase();
+    let rows = [];
+    try{
+      rows = await _admin.list();
+      ov.querySelector("#adminErr").style.display="none";
+    }catch(e){
+      _adminShowErr(e);
+      rows = [];
+    }
+
+    const filtered = rows.filter(r=>{
+      if(!q) return true;
+      const tail = String(r.device_token||"").slice(-6).toLowerCase();
+      return String(r.user_email||"").toLowerCase().includes(q) || tail.includes(q) || String(r.device_token||"").toLowerCase().includes(q);
+    });
+
+    const esc = (s)=>String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const badge = (txt,bg)=>`<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:${bg};color:#fff">${txt}</span>`;
+    wrap.innerHTML = `
+      <table style="width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px">
+        <thead>
+          <tr style="text-align:left;opacity:.75">
+            <th>账号</th><th>设备码(后6位)</th><th>状态</th><th>申请时间</th><th>最后在线</th><th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(r=>{
+            const status = r.blocked ? badge("已封禁","#e74c3c") : (r.approved ? badge("已批准","#2ecc71") : badge("待审批","#f39c12"));
+            return `
+            <tr style="background:#f7f8fa;border-radius:12px">
+              <td style="padding:10px 10px;border-radius:12px 0 0 12px">${esc(r.user_email)}</td>
+              <td style="padding:10px 10px">${esc(String(r.device_token||"").slice(-6))}</td>
+              <td style="padding:10px 10px">${status}</td>
+              <td style="padding:10px 10px">${esc(r.created_at||"")}</td>
+              <td style="padding:10px 10px">${esc(r.last_seen_at||"")}</td>
+              <td style="padding:10px 10px;text-align:right;border-radius:0 12px 12px 0">
+                <button data-act="approve" data-id="${r.id}" style="padding:6px 10px;border:none;border-radius:10px;background:#2c3e50;color:#fff;font-weight:700;margin-right:6px">批准</button>
+                <button data-act="block" data-id="${r.id}" style="padding:6px 10px;border:none;border-radius:10px;background:#e74c3c;color:#fff;font-weight:700">封禁</button>
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+      <div style="font-size:12px;opacity:.75">共 ${filtered.length} 条（显示前 200 条）</div>
+    `;
+
+    wrap.querySelectorAll("button[data-act]").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const act = btn.getAttribute("data-act");
+        const id = Number(btn.getAttribute("data-id"));
+        btn.disabled = true;
+        try{
+          if(act==="approve") await _admin.approve(id);
+          if(act==="block") await _admin.block(id);
+          await _renderAdminTable();
+        }catch(e){
+          _adminShowErr(e);
+        }finally{
+          btn.disabled = false;
+        }
+      };
+    });
+  };
+
 
   const renderLogin = (msg="") => {
     const m = msg ? `<p style="color:#b91c1c">${_escapeHtml(msg)}</p>` : "";
@@ -2859,19 +3048,52 @@ async function _gateMain(){
 
     const deviceToken = _getOrCreateDeviceToken();
 
-    // 1) 设备登记（只写 user_id + device_token + user_agent；审批字段不给客户端写）
+    // 0) 账号白名单（像内部系统一样：不在名单=直接禁用）
+    let allowInfo = null;
+    {
+      const { data: au, error: auErr } = await sb
+        .from("allowed_users")
+        .select("role, enabled")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if(auErr){
+        return _showGate(`
+          <p style="color:#b91c1c"><b>白名单校验失败</b></p>
+          <p>请在 Supabase 创建 <code>allowed_users</code> 表，并配置 RLS/策略。</p>
+          <p class="auth-small">${_escapeHtml(auErr.message || String(auErr))}</p>
+          <button id="gateLogoutBtn" class="auth-btn danger">退出登录</button>
+        `), (document.getElementById("gateLogoutBtn").onclick = async()=>{await sb.auth.signOut();});
+      }
+      if(!au || au.enabled !== true){
+        return _showGate(`
+          <p style="color:#b91c1c"><b>未授权账号</b></p>
+          <p>该账号不在允许名单中，无法使用系统。</p>
+          <p class="auth-small">账号：${_escapeHtml(user.email || "")}</p>
+          <p class="auth-small">设备码（发给管理员开通/排查）：</p>
+          <div class="auth-code">${_escapeHtml(deviceToken)}</div>
+          <button id="gateCopyBtn" class="auth-btn">复制设备码</button>
+          <button id="gateLogoutBtn" class="auth-btn danger">退出登录</button>
+        `),
+        (document.getElementById("gateCopyBtn").onclick = async()=>{try{await navigator.clipboard.writeText(deviceToken);}catch(e){};}),
+        (document.getElementById("gateLogoutBtn").onclick = async()=>{await sb.auth.signOut();});
+      }
+      allowInfo = au;
+    }
+
+    const isAdmin = (allowInfo && String(allowInfo.role).toLowerCase() === "admin");
+
+    // 1) 设备登记（只写 user_id + device_token；审批字段不给客户端写）
     await sb.from("allowed_devices")
       .upsert({
         user_id: user.id,
-        device_token: deviceToken,
-        user_id: user.id,
         device_token: deviceToken
-      }, { onConflict: "device_token" });
+      }, { onConflict: "user_id,device_token" });
 
     // 2) 查询审批状态
     const { data, error } = await sb
       .from("allowed_devices")
-      .select("approved, blocked")
+      .select("id, approved, blocked")
       .eq("user_id", user.id)
       .eq("device_token", deviceToken)
       .maybeSingle();
@@ -2890,14 +3112,29 @@ async function _gateMain(){
     if(data.blocked) return renderBlocked(deviceToken);
     if(!data.approved) return renderPending(deviceToken, "设备未审批");
 
-    // 通过
+    // 通过：隐藏门禁，显示水印与（可选）管理员入口
     _hideGate();
+    _ensureWatermark(user.email || "", deviceToken);
+    if(isAdmin) _ensureAdminButton();
+  }
+
+  // 初次：如果没有会话 → 登录；有会话 → 直接走审批
+ _hideGate();
   }
 
   // 初次：如果没有会话 → 登录；有会话 → 直接走审批
   const { data: { session } } = await sb.auth.getSession();
   if(!session) renderLogin();
   else await afterLogin();
+
+  // 定时校验：封禁/换机可在 1 分钟内生效（更像内部系统）
+  setInterval(async ()=>{
+    try{
+      const { data: { session } } = await sb.auth.getSession();
+      if(session) await afterLogin();
+    }catch(e){}
+  }, 60000);
+
 
   // 会话变化时自动刷新
   sb.auth.onAuthStateChange(async (_event, _session) => {
