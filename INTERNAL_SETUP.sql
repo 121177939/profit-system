@@ -1,3 +1,28 @@
+-- 如果你之前已经创建过 allowed_users 表，但缺少字段（比如 approved），直接跑下面这些 ALTER：
+alter table if exists public.allowed_users
+  add column if not exists role text default 'user',
+  add column if not exists enabled boolean not null default true,
+  add column if not exists approved boolean not null default false,
+  add column if not exists blocked boolean not null default false,
+  add column if not exists note text,
+  add column if not exists created_at timestamptz not null default now();
+
+-- 确保 email 唯一（如果之前没建过）
+do $$
+begin
+  if not exists (
+    select 1 from pg_indexes
+    where schemaname='public' and indexname='allowed_users_email_key'
+  ) then
+    create unique index allowed_users_email_key on public.allowed_users (email);
+  end if;
+end$$;
+
+-- 把你的管理员账号设置为已通过（把邮箱改成你的）
+update public.allowed_users
+set approved = true, enabled = true, blocked = false, role = 'admin'
+where email = '912872449@qq.com';
+
 -- 商业订单利润管理系统 v20.0（账号登录版）数据库初始化
 -- 1) app_state：每个账号一行（id = auth.uid()），存数据；以及全局开关（id='global'）
 -- 2) allowed_users：白名单。approved=true 才允许使用；blocked=true 禁用
