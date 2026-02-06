@@ -1,12 +1,12 @@
 {
-  "name": "商业订单利润管理系统 v20.0（账号登录版）",
-  "short_name": "利润系统",
+  "name": "商业订单利润管理系统 v18",
+  "short_name": "商业订单 v18",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7fa",
   "theme_color": "#2c3e50",
-  "description": "账号登录版：登录即可使用；数据按账号隔离（Supabase RLS）",
+  "description": "商业订单利润管理系统 v18（Supabase云端同步，密码保护，扫码修复，计算器可拖动）",
   "icons": [
     {
       "src": "icon-192.png",
