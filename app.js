@@ -1,19 +1,19 @@
-控制台.日志("app.js 加载");
+console.log("app.js loaded");
 
-// 创建或读取设备令牌 (安全 JS, 无中文关键字)
-getOrCreateDeviceToken getOrCreateDeviceToken 函数 () {
-  钥匙钥匙    =   "device_token_v1";
-  tt    =   localStorage.getItem(钥匙);
-  如果 (!t) {
-    t   =   (加密货币   &&   加密货币.随机 UUID UUID)   ?   加密货币.随机 Uuid Uuid()   :   弦乐(日期.现在())   +   "_"   +   数学.随机();
-    localStorage.setItem(钥匙,  t);
+// Create or read device token (safe JS, no Chinese keywords)
+function getOrCreateDeviceToken() {
+  const KEY = "device_token_v1";
+  let t = localStorage.getItem(KEY);
+  if (!t) {
+    t = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random();
+    localStorage.setItem(KEY, t);
   }
-  返回 t;
+  return t;
 }
 
-// 简单的渲染 (避免任何翻译问题)
-文件.addEventListener(“DOMContentLoaded” ,   ()   =>   {
-  pp    =   文件.createElement("p");
-  p.textContent   =   “设备令牌:”:”   +   getOrCreateDeviceToken();
-  文件.身体.appendChild(p);
+// Simple render (avoid any translation issues)
+document.addEventListener("DOMContentLoaded", () => {
+  const p = document.createElement("p");
+  p.textContent = "Device token: " + getOrCreateDeviceToken();
+  document.body.appendChild(p);
 });
