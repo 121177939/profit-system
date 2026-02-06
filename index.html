@@ -13,6 +13,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
         * {
             margin: 0;
@@ -988,6 +989,28 @@
   #cloudBar .action-btn .icon,
   #cloudBar .action-btn svg{ width:13px; height:13px; }
 }
+
+/* === 账号弹窗（仅新增，不改原UI） === */
+.action-btn.btn-account{background:#34495e;color:#fff}
+.action-btn.btn-account:hover{filter:brightness(1.05)}
+#accountModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9999;background:rgba(0,0,0,.45)}
+#accountModal .am-box{width:min(520px,92vw);background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);overflow:hidden}
+#accountModal .am-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #eee}
+#accountModal .am-hd h3{margin:0;font-size:16px}
+#accountModal .am-bd{padding:12px 14px}
+#accountModal label{display:block;font-size:13px;color:#333;margin:10px 0 6px}
+#accountModal input{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px}
+#accountModal .am-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+#accountModal .am-row button{padding:9px 12px;border-radius:10px;border:1px solid #2c3e50;background:#2c3e50;color:#fff;cursor:pointer}
+#accountModal .am-row button.ghost{background:#fff;color:#2c3e50;border-color:#ddd}
+#accountModal .am-msg{margin-top:10px;font-size:13px;min-height:18px;color:#e74c3c}
+#accountModal .am-ok{color:#2ecc71}
+#accountModal .admin-box{margin-top:14px;padding-top:12px;border-top:1px dashed #ddd;display:none}
+#accountModal table{width:100%;border-collapse:collapse;font-size:12px}
+#accountModal th,#accountModal td{border-bottom:1px solid #f0f0f0;padding:6px 4px;text-align:left;vertical-align:top}
+#accountModal .toggle{cursor:pointer}
+#accountModal .sqlbox{width:100%;height:120px;font-size:11px;padding:8px;border:1px solid #ddd;border-radius:10px;background:#fafafa}
+
 </style>
 
 <style>
@@ -1028,6 +1051,9 @@
         </div>
         
         <div class="actions">
+            <button class="action-btn btn-account" id="account-btn">
+                <i class="fas fa-user-circle"></i> 账号
+            </button>
             <button class="action-btn btn-add" id="add-btn">
                 <i class="fas fa-plus-circle"></i> 新增
             </button>
@@ -2717,6 +2743,277 @@ const REST = SUPABASE_URL.replace(/\/$/,'') + "/rest/v1/app_state";
 const LOCAL_KEY = "orderProfitData";
 const PIN_KEY = "cloudSyncPIN";
 
+// ===================== === Supabase Auth账号系统（新增，不改原UI） =====================
+const ADMIN_EMAIL = "912872449@qq.com";
+const sb = (window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+let __currentUser = null;
+let __loginEnabled = false;
+
+// 账号开关（未登录禁用保存/新增/导入/导出）
+function setFeatureLock(locked){
+  const ids = ["save-btn","add-btn","import-btn","export-btn","btnCloudSave","btnCloudLoad"];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.disabled = !!locked;
+    if(locked) el.classList.add("disabled");
+    else el.classList.remove("disabled");
+  });
+}
+
+// 弹窗
+function amOpen(){
+  const m = document.getElementById("accountModal");
+  if(m){ m.style.display="flex"; m.setAttribute("aria-hidden","false"); }
+}
+function amClose(){
+  const m = document.getElementById("accountModal");
+  if(m){ m.style.display="none"; m.setAttribute("aria-hidden","true"); }
+}
+function amMsg(t, ok=false){
+  const el = document.getElementById("amMsg");
+  if(!el) return;
+  el.textContent = t || "";
+  el.classList.toggle("am-ok", !!ok);
+}
+function amStatus(t){
+  const el = document.getElementById("amStatus");
+  if(el) el.textContent = t;
+}
+
+async function refreshAuth(){
+  if(!sb){
+    amStatus("未加载账号组件");
+    setFeatureLock(true);
+    return;
+  }
+  const { data: { user } } = await sb.auth.getUser();
+  __currentUser = user || null;
+
+  if(!__currentUser){
+    __loginEnabled = false;
+    amStatus("未登录");
+    amMsg("未登录：保存/新增/导入/导出 已锁定", false);
+    setFeatureLock(true);
+    hideAdminUI();
+    return;
+  }
+
+  // 记录/更新 profiles，并检查 enabled
+  const ok = await ensureProfileAndCheckEnabled(__currentUser);
+  if(!ok){
+    await sb.auth.signOut();
+    __currentUser = null;
+    __loginEnabled = false;
+    amStatus("已退出");
+    amMsg("账号已被管理员禁用", false);
+    setFeatureLock(true);
+    hideAdminUI();
+    return;
+  }
+
+  __loginEnabled = true;
+  amStatus(__currentUser.email || __currentUser.id);
+  amMsg("登录成功：已解锁功能，并会自动拉取云端数据", true);
+  setFeatureLock(false);
+
+  // 管理员面板
+  if((__currentUser.email||"").toLowerCase() === ADMIN_EMAIL.toLowerCase()){
+    showAdminUI();
+  }else{
+    hideAdminUI();
+  }
+
+  // 登录后自动拉取云端（不改变UI，只刷新数据）
+  try{ await cloudLoad(); }catch(e){}
+}
+
+async function getAccessToken(){
+  const { data: { session } } = await sb.auth.getSession();
+  return session?.access_token || null;
+}
+
+// 覆盖 headers：用用户 token 走 RLS
+async function _supabaseHeaders(extra={}){
+  const token = __currentUser ? await getAccessToken() : null;
+  return Object.assign({
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + (token || SUPABASE_KEY),
+    "Content-Type": "application/json"
+  }, extra);
+}
+
+// 覆盖：行 id = 当前用户 uid
+async function _getRowId(){
+  if(!__currentUser) throw new Error("未登录");
+  return __currentUser.id;
+}
+
+// === profiles 表：管理员控制是否允许登录 ===
+const PROFILE_TABLE = "user_profiles";
+const __ADMIN_SQL = `create table if not exists public.user_profiles (
+  user_id uuid primary key,
+  email text,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table public.user_profiles enable row level security;
+
+drop policy if exists "self read" on public.user_profiles;
+drop policy if exists "self upsert" on public.user_profiles;
+drop policy if exists "admin read all" on public.user_profiles;
+drop policy if exists "admin update all" on public.user_profiles;
+
+create policy "self read" on public.user_profiles for select
+using (auth.uid() = user_id);
+
+create policy "self upsert" on public.user_profiles for insert
+with check (auth.uid() = user_id);
+
+create policy "admin read all" on public.user_profiles for select
+using ((auth.jwt()->>'email') = '${ADMIN_EMAIL}');
+
+create policy "admin update all" on public.user_profiles for update
+using ((auth.jwt()->>'email') = '${ADMIN_EMAIL}')
+with check ((auth.jwt()->>'email') = '${ADMIN_EMAIL}');`;
+
+async function ensureProfileAndCheckEnabled(user){
+  try{
+    // upsert 自己
+    const { error: upErr } = await sb.from(PROFILE_TABLE).upsert({
+      user_id: user.id,
+      email: user.email || null,
+      enabled: true
+    }, { onConflict: "user_id" });
+    // 如果表不存在或没策略，这里可能报错：我们不阻止登录，但会提示管理员需要初始化
+    if(upErr){
+      // 允许继续，但不做禁用控制
+      amMsg("提示：管理员未初始化 user_profiles（禁用功能不可用）。在管理员面板里可复制SQL。", false);
+      return true;
+    }
+
+    const { data, error } = await sb.from(PROFILE_TABLE).select("enabled").eq("user_id", user.id).maybeSingle();
+    if(error || !data) return true; // 获取不到就不拦
+    return data.enabled !== false;
+  }catch(e){
+    return true;
+  }
+}
+
+function showAdminUI(){
+  const box = document.getElementById("adminBox");
+  const sql = document.getElementById("adminSql");
+  if(sql) sql.value = __ADMIN_SQL;
+  if(box) box.style.display = "block";
+  loadAdminList();
+}
+function hideAdminUI(){
+  const box = document.getElementById("adminBox");
+  if(box) box.style.display = "none";
+}
+
+async function loadAdminList(){
+  const tb = document.getElementById("adminTbody");
+  if(!tb) return;
+  tb.innerHTML = `<tr><td colspan="3" style="color:#555">加载中…</td></tr>`;
+  const { data, error } = await sb.from(PROFILE_TABLE).select("user_id,email,enabled,created_at").order("created_at",{ascending:false}).limit(200);
+  if(error){
+    tb.innerHTML = `<tr><td colspan="3" style="color:#e74c3c">读取失败：${(error.message||error)}</td></tr>`;
+    return;
+  }
+  if(!data || !data.length){
+    tb.innerHTML = `<tr><td colspan="3" style="color:#555">暂无用户（或未初始化表/策略）</td></tr>`;
+    return;
+  }
+  tb.innerHTML = data.map(r=>{
+    const email = r.email || r.user_id;
+    const enabled = r.enabled !== false;
+    const t = r.created_at ? String(r.created_at).replace("T"," ").slice(0,19) : "";
+    return `<tr>
+      <td>${escapeHtml(email)}</td>
+      <td><a class="toggle" data-uid="${r.user_id}" data-enabled="${enabled ? "1":"0"}" href="javascript:void(0)">${enabled ? "✅ 允许":"⛔ 禁用"}</a></td>
+      <td>${escapeHtml(t)}</td>
+    </tr>`;
+  }).join("");
+  tb.querySelectorAll("a.toggle").forEach(a=>{
+    a.onclick = async ()=>{
+      const uid = a.getAttribute("data-uid");
+      const cur = a.getAttribute("data-enabled")==="1";
+      const next = !cur;
+      const { error: upE } = await sb.from(PROFILE_TABLE).update({ enabled: next }).eq("user_id", uid);
+      if(upE){ amMsg("更新失败："+(upE.message||upE), false); return; }
+      loadAdminList();
+    };
+  });
+}
+
+function escapeHtml(s){
+  return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 绑定按钮
+function bindAccountUI(){
+  const btn = document.getElementById("account-btn");
+  if(btn) btn.addEventListener("click", amOpen);
+
+  const close = document.getElementById("amClose");
+  if(close) close.addEventListener("click", amClose);
+
+  const m = document.getElementById("accountModal");
+  if(m) m.addEventListener("click", (e)=>{ if(e.target===m) amClose(); });
+
+  const login = document.getElementById("amLogin");
+  const reg = document.getElementById("amRegister");
+  const out = document.getElementById("amLogout");
+  const refresh = document.getElementById("adminRefresh");
+
+  if(login) login.onclick = async ()=>{
+    amMsg("");
+    const email = (document.getElementById("amEmail")?.value||"").trim();
+    const pass  = (document.getElementById("amPass")?.value||"");
+    if(!email || !pass) return amMsg("请输入邮箱和密码");
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if(error) return amMsg(error.message||String(error));
+    await refreshAuth();
+  };
+  if(reg) reg.onclick = async ()=>{
+    amMsg("");
+    const email = (document.getElementById("amEmail")?.value||"").trim();
+    const pass  = (document.getElementById("amPass")?.value||"");
+    if(!email || !pass) return amMsg("请输入邮箱和密码");
+    const { error } = await sb.auth.signUp({ email, password: pass });
+    if(error) return amMsg(error.message||String(error));
+    amMsg("注册成功：如果你开启了邮箱验证，请去邮箱确认后再登录。", true);
+  };
+  if(out) out.onclick = async ()=>{
+    amMsg("");
+    await sb.auth.signOut();
+    await refreshAuth();
+  };
+  if(refresh) refresh.onclick = loadAdminList;
+
+  // 原云端“密码”按钮保持UI不变：点击提示改用账号
+  const pinBtn = document.getElementById("btnCloudPIN");
+  if(pinBtn) pinBtn.onclick = ()=>{ amMsg("已改为账号登录同步（不再使用同步密码）"); amOpen(); };
+}
+
+// 初始化：页面加载后锁功能，等待登录
+(function initAuthLock(){
+  try{
+    bindAccountUI();
+    setFeatureLock(true);
+    if(sb){
+      sb.auth.onAuthStateChange(()=>refreshAuth());
+      refreshAuth();
+    }
+  }catch(e){}
+})();
+// ===================== === Supabase Auth账号系统 结束 =====================
+
 function _supabaseHeaders(extra={}){
   return Object.assign({
     "apikey": SUPABASE_KEY,
@@ -2771,7 +3068,7 @@ async function cloudSave(){
     const payload = [{ id, data:dataObj, updated_at:_nowIso() }];
     const res = await fetch(REST + "?on_conflict=id", {
       method:"POST",
-      headers:_supabaseHeaders({"Prefer":"resolution=merge-duplicates,return=representation"}),
+      headers:await _supabaseHeaders({"Prefer":"resolution=merge-duplicates,return=representation"}),
       body: JSON.stringify(payload)
     });
     const txt = await res.text();
@@ -2790,7 +3087,7 @@ async function cloudLoad(){
     const id = await _getRowId();
     const res = await fetch(REST + "?id=eq." + encodeURIComponent(id) + "&select=data,updated_at", {
       method:"GET",
-      headers:_supabaseHeaders()
+      headers:await _supabaseHeaders()
     });
     const txt = await res.text();
     if(!res.ok) return _setCloudStatus("拉取失败：" + txt.slice(0,200), false);
@@ -3131,7 +3428,53 @@ window.addEventListener("load", ()=>{
 })();
 </script>
 
-  <script src="whitelist_patch.js"></script>
+
+<!-- 账号弹窗（新增，不影响原UI） -->
+<div id="accountModal" aria-hidden="true">
+  <div class="am-box" role="dialog" aria-modal="true">
+    <div class="am-hd">
+      <h3>账号登录</h3>
+      <button id="amClose" class="ghost" style="border:1px solid #ddd;background:#fff;color:#2c3e50;border-radius:10px;padding:6px 10px;cursor:pointer">关闭</button>
+    </div>
+    <div class="am-bd">
+      <div style="font-size:13px;color:#555;margin-bottom:6px">
+        当前状态：<span id="amStatus">未登录</span>
+      </div>
+      <label>邮箱</label>
+      <input id="amEmail" placeholder="请输入邮箱" autocomplete="email">
+      <label>密码</label>
+      <input id="amPass" placeholder="请输入密码" type="password" autocomplete="current-password">
+      <div class="am-row">
+        <button id="amLogin">登录</button>
+        <button id="amRegister">注册</button>
+        <button id="amLogout" class="ghost">退出</button>
+      </div>
+      <div id="amMsg" class="am-msg"></div>
+
+      <div class="admin-box" id="adminBox">
+        <div style="font-weight:700;margin-bottom:6px">管理员面板（仅管理员邮箱可见）</div>
+        <div style="font-size:12px;color:#555;margin-bottom:8px">
+          这里控制“是否允许登录”。被禁用的账号登录后会立刻被退出，并提示“账号已被管理员禁用”。
+        </div>
+        <div class="am-row" style="margin-top:0">
+          <button id="adminRefresh">刷新用户列表</button>
+        </div>
+        <div style="overflow:auto;max-height:220px;margin-top:8px">
+          <table>
+            <thead>
+              <tr><th>邮箱</th><th>允许登录</th><th>创建时间</th></tr>
+            </thead>
+            <tbody id="adminTbody"></tbody>
+          </table>
+        </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:12px;color:#555">如果列表为空/报错：点这里复制一次初始化SQL（在Supabase的SQL Editor运行）</summary>
+          <textarea class="sqlbox" readonly id="adminSql"></textarea>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
