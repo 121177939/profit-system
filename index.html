@@ -2743,6 +2743,26 @@ const LOCAL_KEY = "orderProfitData";
 const PIN_KEY = "cloudSyncPIN";
 
 // ===================== === Supabase Auth账号系统（新增，不改原UI） =====================
+// ---- 账号请求防连点/防频率限制（避免短时间多次点击触发 Supabase rate limit）
+let __authBusy = false;
+let __authCooldownUntil = 0;
+function __authCanRun(){
+  const now = Date.now();
+  if(__authBusy) return { ok:false, msg:"正在处理，请稍候…" };
+  if(now < __authCooldownUntil){
+    const s = Math.ceil((__authCooldownUntil - now)/1000);
+    return { ok:false, msg:`请求过于频繁，请 ${s} 秒后再试` };
+  }
+  return { ok:true };
+}
+function __setAuthBusy(b){
+  __authBusy = b;
+  const a = document.getElementById("amLogin");
+  const b2 = document.getElementById("amReg");
+  if(a) a.disabled = b;
+  if(b2) b2.disabled = b;
+}
+
 
 // ---- Supabase SDK 载入兜底（解决某些地区 jsdelivr 不可用导致登录无反应） ----
 function __loadScriptOnce(src){
@@ -2886,9 +2906,16 @@ async function _supabaseHeaders(extra={}){
 }
 
 // 覆盖：行 id = 当前用户 uid
+
+function isUuid(v){
+  return typeof v==='string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
+}
+
 async function _getRowId(){
   if(!__currentUser) throw new Error("未登录");
-  return __currentUser.id;
+  const uid = __currentUser.id;
+  if(!isUuid(uid)) throw new Error("当前用户ID不是UUID（请重新登录/清缓存/检查前端是否为旧版）：" + String(uid));
+  return uid;
 }
 
 // === profiles 表：管理员控制是否允许登录 ===
@@ -3012,25 +3039,56 @@ function bindAccountUI(){
 
   if(login) login.onclick = async ()=>{
     amMsg("");
+    const gate = __authCanRun();
+    if(!gate.ok) return amMsg(gate.msg);
     const email = (document.getElementById("amEmail")?.value||"").trim();
     const pass  = (document.getElementById("amPass")?.value||"");
     if(!email || !pass) return amMsg("请输入邮箱和密码");
-    const client = await initSb();
-    if(!client) return;
-    const { error } = await client.auth.signInWithPassword({ email, password: pass });
-    if(error) return amMsg(error.message||String(error));
-    await refreshAuth();
+    __setAuthBusy(true);
+    try{
+      const client = await initSb();
+      if(!client) return;
+      const { error } = await client.auth.signInWithPassword({ email, password: pass });
+      if(error){
+        const msg = (error.message||String(error));
+        if(/rate limit/i.test(msg)){
+          __authCooldownUntil = Date.now() + 60*1000; // 冷却 60 秒
+        }
+        return amMsg(msg);
+      }
+      await refreshAuth();
+    }catch(e){
+      return amMsg(String(e));
+    }finally{
+      __setAuthBusy(false);
+    }
   };
   if(reg) reg.onclick = async ()=>{
     amMsg("");
+    const gate = __authCanRun();
+    if(!gate.ok) return amMsg(gate.msg);
     const email = (document.getElementById("amEmail")?.value||"").trim();
     const pass  = (document.getElementById("amPass")?.value||"");
     if(!email || !pass) return amMsg("请输入邮箱和密码");
-    const client = await initSb();
-    if(!client) return;
-    const { error } = await client.auth.signUp({ email, password: pass });
-    if(error) return amMsg(error.message||String(error));
-    amMsg("注册成功：如果你开启了邮箱验证，请去邮箱确认后再登录。", true);
+    __setAuthBusy(true);
+    try{
+      const client = await initSb();
+      if(!client) return;
+      const { error } = await client.auth.signUp({ email, password: pass });
+      if(error){
+        const msg = (error.message||String(error));
+        if(/rate limit/i.test(msg)){
+          __authCooldownUntil = Date.now() + 60*1000;
+        }
+        return amMsg(msg);
+      }
+      amMsg("注册成功（如需邮箱验证，请去邮箱确认后再登录）");
+      await refreshAuth();
+    }catch(e){
+      return amMsg(String(e));
+    }finally{
+      __setAuthBusy(false);
+    }
   };
   if(out) out.onclick = async ()=>{
     amMsg("");
