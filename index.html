@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>商业订单利润管理系统 v20.0正式版</title>
+    <title>商业订单利润管理系统 v20.7（最终稳定版）</title>
 
 
 <link rel="manifest" href="manifest.json">
@@ -2904,14 +2904,13 @@ async function refreshAuth(sessionFromEvent){
     return;
   }
 
-  // 记录/更新 profiles，并检查 enabled
-  const ok = await ensureProfileAndCheckEnabled(__currentUser);
-  if(!ok){
-    try{ const client2 = await initSb(); if(client2) await client2.auth.signOut(); }catch(e){}
-    __currentUser = null;
+  // 登录态只由 Auth 决定；Profile 只用于“禁用/角色”控制
+  const status = await ensureProfileAndGetStatus(__currentUser);
+
+  if(status && status.disabled){
     __loginEnabled = false;
-    amStatus("已退出");
-    amMsg("账号已被管理员禁用", false);
+    amStatus(__currentUser.email || __currentUser.id);
+    amMsg("账号已被管理员禁用：功能已锁定（仍保持登录状态）", false);
     setFeatureLock(true);
     hideAdminUI();
     return;
@@ -2922,8 +2921,10 @@ async function refreshAuth(sessionFromEvent){
   amMsg("登录成功：已解锁功能，并会自动拉取云端数据", true);
   setFeatureLock(false);
 
-  // 管理员面板
-  if((__currentUser.email||"").toLowerCase() === ADMIN_EMAIL.toLowerCase()){
+  // 管理员面板：优先看 profile.role，其次保留邮箱硬编码兜底
+  const isAdminByRole = (status && (String(status.role||"").toLowerCase()==="admin"));
+  const isAdminByEmail = ((__currentUser.email||"").toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  if(isAdminByRole || isAdminByEmail){
     showAdminUI();
   }else{
     hideAdminUI();
@@ -2960,52 +2961,87 @@ async function _getRowId(){
 // === profiles 表：管理员控制是否允许登录 ===
 const PROFILE_TABLE = "user_profiles";
 const __ADMIN_SQL = `create table if not exists public.user_profiles (
-  user_id uuid primary key,
+  id uuid primary key references auth.users(id) on delete cascade,
   email text,
-  enabled boolean not null default true,
-  created_at timestamptz not null default now()
+  disabled boolean not null default false,
+  role text not null default 'user',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 alter table public.user_profiles enable row level security;
 
-drop policy if exists "self read" on public.user_profiles;
-drop policy if exists "self upsert" on public.user_profiles;
-drop policy if exists "admin read all" on public.user_profiles;
-drop policy if exists "admin update all" on public.user_profiles;
+drop policy if exists "profiles read own" on public.user_profiles;
+drop policy if exists "profiles insert own" on public.user_profiles;
+drop policy if exists "profiles update own" on public.user_profiles;
+drop policy if exists "admin manage profiles" on public.user_profiles;
 
-create policy "self read" on public.user_profiles for select
-using (auth.uid() = user_id);
+-- 用户读取/写入自己的 profile
+create policy "profiles read own" on public.user_profiles
+for select
+using (auth.uid() = id and disabled = false);
 
-create policy "self upsert" on public.user_profiles for insert
-with check (auth.uid() = user_id);
+create policy "profiles insert own" on public.user_profiles
+for insert
+with check (auth.uid() = id);
 
-create policy "admin read all" on public.user_profiles for select
-using ((auth.jwt()->>'email') = '${ADMIN_EMAIL}');
+create policy "profiles update own" on public.user_profiles
+for update
+using (auth.uid() = id)
+with check (auth.uid() = id);
 
-create policy "admin update all" on public.user_profiles for update
-using ((auth.jwt()->>'email') = '${ADMIN_EMAIL}')
-with check ((auth.jwt()->>'email') = '${ADMIN_EMAIL}');`;
+-- 管理员：可管理全部用户（需要自己的 role='admin' 且未禁用）
+create policy "admin manage profiles" on public.user_profiles
+for all
+using (
+  exists (
+    select 1 from public.user_profiles p
+    where p.id = auth.uid() and p.role = 'admin' and p.disabled = false
+  )
+)
+with check (
+  exists (
+    select 1 from public.user_profiles p
+    where p.id = auth.uid() and p.role = 'admin' and p.disabled = false
+  )
+);
+`;
 
-async function ensureProfileAndCheckEnabled(user){
+async function ensureProfileAndGetStatus(user){
+  // 注意：Auth(是否登录) 与 Profile(是否禁用/角色) 是两层概念
+  // profile 失败 ≠ 未登录；只做权限降级，不要强制退出账号
   try{
-    // upsert 自己
-    const { error: upErr } = await sb.from(PROFILE_TABLE).upsert({
-      user_id: user.id,
+    // 先 upsert 自己，确保有一行
+    const payload = {
+      id: user.id,
       email: user.email || null,
-      enabled: true
-    }, { onConflict: "user_id" });
-    // 如果表不存在或没策略，这里可能报错：我们不阻止登录，但会提示管理员需要初始化
+      disabled: false,
+      role: "user",
+      updated_at: new Date().toISOString()
+    };
+    const { error: upErr } = await sb.from(PROFILE_TABLE).upsert(payload, { onConflict: "id" });
     if(upErr){
-      // 允许继续，但不做禁用控制
-      amMsg("提示：管理员未初始化 user_profiles（禁用功能不可用）。在管理员面板里可复制SQL。", false);
-      return true;
+      // 表不存在/没策略/字段不匹配：提示但不阻止登录
+      amMsg("提示：管理员未初始化 user_profiles（禁用/角色功能不可用）。在管理员面板里可复制SQL。", false);
+      return null;
     }
 
-    const { data, error } = await sb.from(PROFILE_TABLE).select("enabled").eq("user_id", user.id).maybeSingle();
-    if(error || !data) return true; // 获取不到就不拦
-    return data.enabled !== false;
+    const { data, error } = await sb
+      .from(PROFILE_TABLE)
+      .select("disabled,role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if(error || !data){
+      // 读取不到就降级（不拦登录）
+      return null;
+    }
+    return {
+      disabled: data.disabled === true,
+      role: data.role || "user"
+    };
   }catch(e){
-    return true;
+    return null;
   }
 }
 
@@ -3025,7 +3061,7 @@ async function loadAdminList(){
   const tb = document.getElementById("adminTbody");
   if(!tb) return;
   tb.innerHTML = `<tr><td colspan="3" style="color:#555">加载中…</td></tr>`;
-  const { data, error } = await sb.from(PROFILE_TABLE).select("user_id,email,enabled,created_at").order("created_at",{ascending:false}).limit(200);
+  const { data, error } = await sb.from(PROFILE_TABLE).select("id,email,disabled,role,created_at,updated_at").order("created_at",{ascending:false}).limit(200);
   if(error){
     tb.innerHTML = `<tr><td colspan="3" style="color:#e74c3c">读取失败：${(error.message||error)}</td></tr>`;
     return;
@@ -3035,12 +3071,12 @@ async function loadAdminList(){
     return;
   }
   tb.innerHTML = data.map(r=>{
-    const email = r.email || r.user_id;
-    const enabled = r.enabled !== false;
+    const email = r.email || r.id;
+    const enabled = r.disabled !== true;
     const t = r.created_at ? String(r.created_at).replace("T"," ").slice(0,19) : "";
     return `<tr>
       <td>${escapeHtml(email)}</td>
-      <td><a class="toggle" data-uid="${r.user_id}" data-enabled="${enabled ? "1":"0"}" href="javascript:void(0)">${enabled ? "✅ 允许":"⛔ 禁用"}</a></td>
+      <td><a class="toggle" data-uid="${r.id}" data-enabled="${enabled ? "1":"0"}" href="javascript:void(0)">${enabled ? "✅ 允许":"⛔ 禁用"}</a></td>
       <td>${escapeHtml(t)}</td>
     </tr>`;
   }).join("");
@@ -3049,7 +3085,7 @@ async function loadAdminList(){
       const uid = a.getAttribute("data-uid");
       const cur = a.getAttribute("data-enabled")==="1";
       const next = !cur;
-      const { error: upE } = await sb.from(PROFILE_TABLE).update({ enabled: next }).eq("user_id", uid);
+      const { error: upE } = await sb.from(PROFILE_TABLE).update({ disabled: !next }).eq("id", uid);
       if(upE){ amMsg("更新失败："+(upE.message||upE), false); return; }
       loadAdminList();
     };
