@@ -3072,8 +3072,8 @@ function bindAccountUI(){
   if(pinBtn) pinBtn.onclick = ()=>{ amMsg("已改为账号登录同步（不再使用同步密码）"); amOpen(); };
 }
 
-// 初始化：页面加载后锁功能，等待登录
-(function initAuthLock(){
+// 初始化：等 DOM 就绪后再绑定按钮（避免拿到 null 导致“点了没反应”）
+function initAuthLock(){
   try{
     bindAccountUI();
     // 默认锁定：未登录不允许保存/新增/导入/导出
@@ -3085,7 +3085,13 @@ function bindAccountUI(){
       refreshAuth(null);
     });
   }catch(e){}
-})();
+}
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', initAuthLock);
+}else{
+  initAuthLock();
+}
 // ===================== === Supabase Auth账号系统 结束 =====================
 
 function _supabaseHeaders(extra={}){
