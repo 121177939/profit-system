@@ -2889,6 +2889,7 @@ async function refreshAuth(sessionFromEvent){
 
   // 优先从本地 session 读取，避免每次刷新都打 auth 接口导致限流
   let session = sessionFromEvent || null;
+  if(session) try{ __saveManualSession(session); }catch(e){}
   if(!session){
     try{
       const sess = await __restoreSessionIfNeeded(client);
@@ -2909,13 +2910,24 @@ async function refreshAuth(sessionFromEvent){
   }
 
   if(!__currentUser){
+    // 刷新瞬间部分手机浏览器会“慢半拍”恢复 session：这里做一次轻量重试，避免误判未登录
+    try{
+      await new Promise(r=>setTimeout(r, 350));
+      const sess2 = await __restoreSessionIfNeeded(client);
+      __currentUser = sess2?.user || __currentUser;
+      if(__currentUser) try{ __saveManualSession(sess2); }catch(e){}
+    }catch(e){}
+  }
+
+  if(!__currentUser){
     __loginEnabled = false;
     amStatus("未登录");
-    amMsg("未登录：保存/新增/导入/导出 已锁定", false);
+    amMsg("未登录：保存/新增/导入/导出 已锁定（如刚刷新，请等待1秒或重试）", false);
     setFeatureLock(true);
     hideAdminUI();
     return;
   }
+
 
   // 登录态只由 Auth 决定；Profile 只用于“禁用/角色”控制
   const status = await ensureProfileAndGetStatus(__currentUser);
@@ -3169,7 +3181,7 @@ function initAuthLock(){
     // 初始化 Supabase SDK 并监听登录状态
     initSb().then((client)=>{
       if(!client) return;
-      client.auth.onAuthStateChange((event, session)=>refreshAuth(session));
+      client.auth.onAuthStateChange((event, session)=>{ try{ if(session) __saveManualSession(session); }catch(e){}; refreshAuth(session); });
       refreshAuth(null);
     });
   }catch(e){}
