@@ -3253,10 +3253,22 @@ async function cloudLoad(){
     _setLocalRaw(JSON.stringify(row.data));
     _setCloudStatus("✅ 已拉取（" + (row.updated_at||"") + "）", true);
 
-    // ✅ 兜底：刷新页面确保内存数据更新
-    sessionStorage.setItem("__cloudReloadOnce", "1");
-    window.__skipBeforeUnloadSave = true;
-    location.reload();
+    // ✅ 不再强制刷新页面（刷新会导致某些手机浏览器 session 恢复慢，从而误判未登录）
+try{
+  const dataObj = row.data;
+  // row.data 通常就是订单数组；兼容未来可能的对象封装
+  if(Array.isArray(dataObj)){
+    orders = dataObj;
+  }else if(dataObj && Array.isArray(dataObj.orders)){
+    orders = dataObj.orders;
+  }else{
+    orders = [];
+  }
+
+  if(typeof renderTable === "function") renderTable();
+  if(typeof updateTotalProfit === "function") updateTotalProfit();
+  if(typeof showToast === "function") showToast("已拉取云端数据", "success");
+}catch(e){}
   }catch(e){
     _setCloudStatus("拉取异常：" + (e?.message||e), false);
   }
