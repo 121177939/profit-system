@@ -13,7 +13,8 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
         * {
             margin: 0;
             padding: 0;
@@ -2743,26 +2744,6 @@ const LOCAL_KEY = "orderProfitData";
 const PIN_KEY = "cloudSyncPIN";
 
 // ===================== === Supabase Auth账号系统（新增，不改原UI） =====================
-// ---- 账号请求防连点/防频率限制（避免短时间多次点击触发 Supabase rate limit）
-let __authBusy = false;
-let __authCooldownUntil = 0;
-function __authCanRun(){
-  const now = Date.now();
-  if(__authBusy) return { ok:false, msg:"正在处理，请稍候…" };
-  if(now < __authCooldownUntil){
-    const s = Math.ceil((__authCooldownUntil - now)/1000);
-    return { ok:false, msg:`请求过于频繁，请 ${s} 秒后再试` };
-  }
-  return { ok:true };
-}
-function __setAuthBusy(b){
-  __authBusy = b;
-  const a = document.getElementById("amLogin");
-  const b2 = document.getElementById("amReg");
-  if(a) a.disabled = b;
-  if(b2) b2.disabled = b;
-}
-
 
 // ---- Supabase SDK 载入兜底（解决某些地区 jsdelivr 不可用导致登录无反应） ----
 function __loadScriptOnce(src){
@@ -2836,19 +2817,45 @@ async function initSb(){
     amMsg("Supabase 登录模块加载失败：请检查网络/CDN（可尝试换网络或开代理）");
     return null;
   }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage
+    }
+  });
   return sb;
 }
 
-async function refreshAuth(){
+async function refreshAuth(sessionFromEvent){
   const client = await initSb();
   if(!client){
     amStatus("账号组件加载失败");
     setFeatureLock(true);
     return;
   }
-  const { data: { user } } = await client.auth.getUser();
-  __currentUser = user || null;
+
+  // 优先从本地 session 读取，避免每次刷新都打 auth 接口导致限流
+  let session = sessionFromEvent || null;
+  if(!session){
+    try{
+      const { data } = await client.auth.getSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  __currentUser = session?.user || null;
+
+  // 兜底：如果本地没有 session，再尝试 getUser（可能会受限流影响）
+  if(!__currentUser){
+    try{
+      const { data: { user } } = await client.auth.getUser();
+      __currentUser = user || null;
+    }catch(e){
+      __currentUser = null;
+    }
+  }
 
   if(!__currentUser){
     __loginEnabled = false;
@@ -2862,7 +2869,7 @@ async function refreshAuth(){
   // 记录/更新 profiles，并检查 enabled
   const ok = await ensureProfileAndCheckEnabled(__currentUser);
   if(!ok){
-    { const client = await initSb(); if(client) await client.auth.signOut(); }
+    try{ const client2 = await initSb(); if(client2) await client2.auth.signOut(); }catch(e){}
     __currentUser = null;
     __loginEnabled = false;
     amStatus("已退出");
@@ -2888,6 +2895,7 @@ async function refreshAuth(){
   try{ await cloudLoad(); }catch(e){}
 }
 
+
 async function getAccessToken(){
   const client = await initSb();
   if(!client) return null;
@@ -2906,16 +2914,9 @@ async function _supabaseHeaders(extra={}){
 }
 
 // 覆盖：行 id = 当前用户 uid
-
-function isUuid(v){
-  return typeof v==='string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
-}
-
 async function _getRowId(){
   if(!__currentUser) throw new Error("未登录");
-  const uid = __currentUser.id;
-  if(!isUuid(uid)) throw new Error("当前用户ID不是UUID（请重新登录/清缓存/检查前端是否为旧版）：" + String(uid));
-  return uid;
+  return __currentUser.id;
 }
 
 // === profiles 表：管理员控制是否允许登录 ===
@@ -3039,61 +3040,30 @@ function bindAccountUI(){
 
   if(login) login.onclick = async ()=>{
     amMsg("");
-    const gate = __authCanRun();
-    if(!gate.ok) return amMsg(gate.msg);
     const email = (document.getElementById("amEmail")?.value||"").trim();
     const pass  = (document.getElementById("amPass")?.value||"");
     if(!email || !pass) return amMsg("请输入邮箱和密码");
-    __setAuthBusy(true);
-    try{
-      const client = await initSb();
-      if(!client) return;
-      const { error } = await client.auth.signInWithPassword({ email, password: pass });
-      if(error){
-        const msg = (error.message||String(error));
-        if(/rate limit/i.test(msg)){
-          __authCooldownUntil = Date.now() + 60*1000; // 冷却 60 秒
-        }
-        return amMsg(msg);
-      }
-      await refreshAuth();
-    }catch(e){
-      return amMsg(String(e));
-    }finally{
-      __setAuthBusy(false);
-    }
+    const client = await initSb();
+    if(!client) return;
+    const { error } = await client.auth.signInWithPassword({ email, password: pass });
+    if(error) return amMsg(error.message||String(error));
+    await refreshAuth(null);
   };
   if(reg) reg.onclick = async ()=>{
     amMsg("");
-    const gate = __authCanRun();
-    if(!gate.ok) return amMsg(gate.msg);
     const email = (document.getElementById("amEmail")?.value||"").trim();
     const pass  = (document.getElementById("amPass")?.value||"");
     if(!email || !pass) return amMsg("请输入邮箱和密码");
-    __setAuthBusy(true);
-    try{
-      const client = await initSb();
-      if(!client) return;
-      const { error } = await client.auth.signUp({ email, password: pass });
-      if(error){
-        const msg = (error.message||String(error));
-        if(/rate limit/i.test(msg)){
-          __authCooldownUntil = Date.now() + 60*1000;
-        }
-        return amMsg(msg);
-      }
-      amMsg("注册成功（如需邮箱验证，请去邮箱确认后再登录）");
-      await refreshAuth();
-    }catch(e){
-      return amMsg(String(e));
-    }finally{
-      __setAuthBusy(false);
-    }
+    const client = await initSb();
+    if(!client) return;
+    const { error } = await client.auth.signUp({ email, password: pass });
+    if(error) return amMsg(error.message||String(error));
+    amMsg("注册成功：如果你开启了邮箱验证，请去邮箱确认后再登录。", true);
   };
   if(out) out.onclick = async ()=>{
     amMsg("");
     { const client = await initSb(); if(client) await client.auth.signOut(); }
-    await refreshAuth();
+    await refreshAuth(null);
   };
   if(refresh) refresh.onclick = loadAdminList;
 
@@ -3105,19 +3075,14 @@ function bindAccountUI(){
 // 初始化：页面加载后锁功能，等待登录
 (function initAuthLock(){
   try{
-    // 等待DOM完全解析（确保账号弹窗元素已在页面中）
-    if(document.readyState === "loading"){
-      document.addEventListener("DOMContentLoaded", bindAccountUI, { once:true });
-    }else{
-      bindAccountUI();
-    }
+    bindAccountUI();
     // 默认锁定：未登录不允许保存/新增/导入/导出
     setFeatureLock(true);
     // 初始化 Supabase SDK 并监听登录状态
     initSb().then((client)=>{
       if(!client) return;
-      client.auth.onAuthStateChange(()=>refreshAuth());
-      refreshAuth();
+      client.auth.onAuthStateChange((event, session)=>refreshAuth(session));
+      refreshAuth(null);
     });
   }catch(e){}
 })();
