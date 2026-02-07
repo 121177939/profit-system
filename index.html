@@ -27,6 +27,7 @@ window.__DIRTY_LOCAL__ = false;
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- XLSX（Excel 导入/导出）。保留 CDN，但在脚本中增加多 CDN 兜底与运行时检测 -->
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
@@ -1921,10 +1922,34 @@ window.__DIRTY_LOCAL__ = false;
             }
         }
         
+        // XLSX 兜底加载：避免 CDN 抽风导致“导入/导出点了没反应/报 XLSX 未定义”
+        async function __ensureXLSX(){
+            if(window.XLSX) return true;
+            const cands = [
+                "https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js",
+                "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+                "https://unpkg.com/xlsx/dist/xlsx.full.min.js"
+            ];
+            for(const u of cands){
+                try{
+                    await __loadScriptOnce(u);
+                    if(window.XLSX) return true;
+                }catch(e){}
+            }
+            return !!window.XLSX;
+        }
+
         // 从Excel导入
-        function importFromExcel(file) {
+        async function importFromExcel(file) {
             if (!file) return;
             window.__IMPORT_LOCK__ = true;
+
+            const ok = await __ensureXLSX();
+            if(!ok){
+                window.__IMPORT_LOCK__ = false;
+                try{ showToast('Excel组件加载失败：请检查网络或稍后重试'); }catch(e){}
+                return;
+            }
             
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -1961,7 +1986,6 @@ window.__DIRTY_LOCAL__ = false;
                     if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
                         window.__DIRTY_LOCAL__ = true;
-                        window.__IMPORT_LOCK__ = false;
                         try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
 
                         // 重置排序状态为日期降序
@@ -1976,6 +2000,9 @@ window.__DIRTY_LOCAL__ = false;
                 } catch (error) {
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
+                } finally {
+                    // 无论成功/失败/取消导入，都要解锁，避免后续“导入失效/云端不再拉取”
+                    window.__IMPORT_LOCK__ = false;
                 }
             };
             
@@ -2337,12 +2364,13 @@ window.__DIRTY_LOCAL__ = false;
         
         // 初始化事件监听
         function initEventListeners() {
-            addBtn.addEventListener('click', addNewRow);
-            exportBtn.addEventListener('click', exportToExcel);
-            importBtn.addEventListener('click', () => fileInput.click());
-            saveBtn.addEventListener('click', saveData);
+            if(addBtn) addBtn.addEventListener('click', addNewRow);
+            if(exportBtn) exportBtn.addEventListener('click', exportToExcel);
+            if(importBtn && fileInput) importBtn.addEventListener('click', () => fileInput.click());
+            // 云端模式：本地“保存”按钮可能已被移除，避免这里报错导致导入/导出等功能失效
+            if(typeof saveBtn !== 'undefined' && saveBtn) saveBtn.addEventListener('click', saveData);
             
-            fileInput.addEventListener('change', function() {
+            if(fileInput) fileInput.addEventListener('change', function() {
                 if (this.files.length > 0) {
                     importFromExcel(this.files[0]);
                     this.value = ''; // 重置文件输入
