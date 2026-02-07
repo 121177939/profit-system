@@ -13,8 +13,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<style>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -3048,7 +3047,12 @@ function bindAccountUI(){
 // 初始化：页面加载后锁功能，等待登录
 (function initAuthLock(){
   try{
-    bindAccountUI();
+    // 等待DOM完全解析（确保账号弹窗元素已在页面中）
+    if(document.readyState === "loading"){
+      document.addEventListener("DOMContentLoaded", bindAccountUI, { once:true });
+    }else{
+      bindAccountUI();
+    }
     // 默认锁定：未登录不允许保存/新增/导入/导出
     setFeatureLock(true);
     // 初始化 Supabase SDK 并监听登录状态
