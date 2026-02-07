@@ -6,6 +6,8 @@
     <title>商业订单利润管理系统 v20.7（最终稳定版）</title>
 
 <script>
+window.__IMPORT_LOCK__ = false;
+window.__DIRTY_LOCAL__ = false;
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
   try{
@@ -1077,10 +1079,7 @@
                 <i class="fas fa-file-import"></i> 导入
             </button>
 <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls">
-            <button class="action-btn btn-save" id="save-btn">
-                <i class="fas fa-save"></i> 保存
-            </button>
-            <button class="action-btn btn-calculator" id="calculator-btn">
+<button class="action-btn btn-calculator" id="calculator-btn">
                 <i class="fas fa-calculator"></i> 计算器
             </button>
             
@@ -1273,7 +1272,7 @@
         const importBtn = document.getElementById('import-btn');
         document.getElementById('restore-btn').addEventListener('click', openBackupRestore);
         const fileInput = document.getElementById('file-input');
-        const saveBtn = document.getElementById('save-btn');
+        const saveBtn = document.getElementById('save-btn'); // 云端模式：按钮可能不存在
         const calculatorBtn = document.getElementById('calculator-btn');
         const totalProfitElement = document.getElementById('total-profit');
         const totalCountElement = document.getElementById('total-count');
@@ -1760,30 +1759,30 @@
             }
         }
         
-        // 保存数据到本地存储
+        // 保存数据到本地存储（后台自动，不再显示“本地保存”按钮）
         function saveData() {
             try {
                 // 从表格中获取最新数据
                 updateOrdersFromTable();
-                
-                // 添加保存动画
-                saveBtn.innerHTML = '<i class="fas fa-check"></i> 保存中...';
-                saveBtn.style.background = 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)';
-                
-                setTimeout(() => {
-                    localStorage.setItem('orderProfitData', JSON.stringify(orders));
-                    
-                    saveBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
-                    saveBtn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
-                    
-                    showToast('数据已成功保存到本地存储');
-                }, 500);
+
+                // 静默写入 localStorage（用于离线/容灾）
+                localStorage.setItem('orderProfitData', JSON.stringify(orders));
+
+                // 如果页面仍存在旧按钮（兼容），才做动画
+                if (typeof saveBtn !== 'undefined' && saveBtn) {
+                    saveBtn.innerHTML = '<i class="fas fa-check"></i> 保存中...';
+                    saveBtn.style.background = 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)';
+                    setTimeout(() => {
+                        saveBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+                        saveBtn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
+                    }, 500);
+                }
             } catch (error) {
                 console.error('保存数据时出错:', error);
-                showToast('保存失败: ' + error.message);
+                try { showToast('保存失败: ' + error.message); } catch (e) {}
             }
         }
-        
+
         // 从表格中更新订单数据
         function updateOrdersFromTable() {
             const rows = tableBody.querySelectorAll('tr');
@@ -1925,6 +1924,7 @@
         // 从Excel导入
         function importFromExcel(file) {
             if (!file) return;
+            window.__IMPORT_LOCK__ = true;
             
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -1960,6 +1960,10 @@
                     // 确认导入
                     if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
+                        window.__DIRTY_LOCAL__ = true;
+                        window.__IMPORT_LOCK__ = false;
+                        try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
+
                         // 重置排序状态为日期降序
                         dateSortState = 'desc';
                         sellAmountSortState = 'none';
@@ -3277,17 +3281,20 @@ function _setCloudStatus(msg, ok=true){
 async function cloudSave(){
   try{
     _setCloudStatus("云端保存中…", true);
-    const raw = _getLocalRaw();
-    if(!raw) return _setCloudStatus("本地暂无数据（先在页面保存/或新增）", false);
+
+    // ✅ 云端模式：以“当前页面内存数据”为准，不依赖用户点本地保存
+    try{ if(typeof updateOrdersFromTable==="function") updateOrdersFromTable(); }catch(e){}
+
+    // orders 为空时也允许保存（但会提示）
+    const dataObj = (typeof orders!=="undefined") ? orders : [];
+    // 同步写一份到本地（离线/容灾）
+    try{ _setLocalRaw(JSON.stringify(dataObj)); }catch(e){}
 
     const client = await initSb();
     if(!client) return _setCloudStatus("Supabase SDK 未就绪", false);
 
     const sess = await __restoreSessionIfNeeded(client);
     if(!sess) return _setCloudStatus("请先登录账号再保存到云端", false);
-
-    let dataObj;
-    try{ dataObj = JSON.parse(raw); }catch{ dataObj = raw; }
 
     const payload = { id: sess.user.id, data: dataObj, updated_at: _nowIso() };
 
@@ -3298,6 +3305,7 @@ async function cloudSave(){
     if(error) return _setCloudStatus("保存失败：" + (error.message||String(error)), false);
 
     _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
+    window.__DIRTY_LOCAL__ = false;
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
@@ -3306,6 +3314,8 @@ async function cloudSave(){
 }
 
 async function cloudLoad(){
+  if(window.__IMPORT_LOCK__){ return; }
+  if(window.__DIRTY_LOCAL__){ return; }
   try{
     _setCloudStatus("云端拉取中…", true);
 
