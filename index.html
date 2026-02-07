@@ -2747,14 +2747,14 @@
 
 
 <script>
-/* ========= 云端同步（Supabase，单人两机，带密码） =========
-   PIN -> SHA256 -> 云端行ID。拉取后自动刷新页面确保生效。
+/* ========= 云端同步（Supabase，按账号自动同步） =========
+   ✅ 不再使用“同步密码(PIN)”按钮。
+   登录账号后：云端保存/拉取自动对应该账号的数据（按 user.id）。
 */
 const SUPABASE_URL = "https://yqsjkdndasbdfmjwahwk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0";
-const REST = SUPABASE_URL.replace(/\/$/,'') + "/rest/v1/app_state";
+const TABLE_STATE = "app_state_user";
 const LOCAL_KEY = "orderProfitData";
-const PIN_KEY = "cloudSyncPIN";
 
 // ===================== === Supabase Auth账号系统（新增，不改原UI） =====================
 
@@ -2924,9 +2924,13 @@ async function refreshAuth(sessionFromEvent){
     amStatus("未登录");
     amMsg("未登录：保存/新增/导入/导出 已锁定（如刚刷新，请等待1秒或重试）", false);
     setFeatureLock(true);
+    try{ const pb=document.getElementById("amPwBox"); if(pb) pb.style.display="none"; }catch(e){}
     hideAdminUI();
     return;
   }
+
+  // 显示“修改登录密码”区块（仅登录后）
+  try{ const pb=document.getElementById("amPwBox"); if(pb) pb.style.display="block"; }catch(e){}
 
 
   // 登录态只由 Auth 决定；Profile 只用于“禁用/角色”控制
@@ -3137,6 +3141,46 @@ function bindAccountUI(){
   const out = document.getElementById("amLogout");
   const refresh = document.getElementById("adminRefresh");
 
+  // 客服微信（账号弹窗内）
+  const copyWx = document.getElementById("amCopyWx");
+  const wxEl  = document.getElementById("amKfWx");
+  const WX_TEXT = "pinking0000";
+
+  async function __copyText(t){
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(t);
+        return true;
+      }
+    }catch(e){}
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.setAttribute('readonly','');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return !!ok;
+    }catch(e){}
+    return false;
+  }
+
+  async function __doCopyWx(){
+    const ok = await __copyText(WX_TEXT);
+    if(ok) amMsg("已复制客服微信："+WX_TEXT, true);
+    else amMsg("复制失败，请手动添加："+WX_TEXT);
+  }
+
+  if(copyWx) copyWx.onclick = __doCopyWx;
+  if(wxEl){
+    wxEl.style.cursor = 'pointer';
+    wxEl.title = '点击复制';
+    wxEl.onclick = __doCopyWx;
+  }
+
   if(login) login.onclick = async ()=>{
     amMsg("");
     const email = (document.getElementById("amEmail")?.value||"").trim();
@@ -3165,11 +3209,29 @@ function bindAccountUI(){
     { const client = await initSb(); if(client) await client.auth.signOut(); }
     await refreshAuth(null);
   };
-  if(refresh) refresh.onclick = loadAdminList;
 
-  // 原云端“密码”按钮保持UI不变：点击提示改用账号
-  const pinBtn = document.getElementById("btnCloudPIN");
-  if(pinBtn) pinBtn.onclick = ()=>{ amMsg("已改为账号登录同步（不再使用同步密码）"); amOpen(); };
+  const chgpw = document.getElementById("amChangePw");
+  if(chgpw) chgpw.onclick = async ()=>{
+    amMsg("");
+    const p1 = (document.getElementById("amNewPass1")?.value||"");
+    const p2 = (document.getElementById("amNewPass2")?.value||"");
+    if(!p1 || !p2) return amMsg("请输入两次新密码");
+    if(p1 !== p2) return amMsg("两次新密码不一致");
+    if(p1.length < 6) return amMsg("新密码太短（至少6位）");
+    const client = await initSb();
+    if(!client) return;
+    // 必须已登录
+    const sess = await __restoreSessionIfNeeded(client);
+    if(!sess) return amMsg("请先登录后再修改密码");
+    const { error } = await client.auth.updateUser({ password: p1 });
+    if(error) return amMsg(error.message||String(error));
+    // 清空输入框
+    try{ document.getElementById("amNewPass1").value=""; document.getElementById("amNewPass2").value=""; }catch(e){}
+    amMsg("登录密码已修改成功：下次请用新密码登录。", true);
+  };
+
+  if(refresh) refresh.onclick = loadAdminList;
+;
 }
 
 // 初始化：等 DOM 就绪后再绑定按钮（避免拿到 null 导致“点了没反应”）
@@ -3212,48 +3274,30 @@ function _setCloudStatus(msg, ok=true){
   el.style.color = ok ? "#2ecc71" : "#e74c3c";
 }
 
-async function _sha256Hex(str){
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  const arr = Array.from(new Uint8Array(buf));
-  return arr.map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-async function _getRowId(){
-  let pin = localStorage.getItem(PIN_KEY);
-  if(!pin){
-    pin = prompt("设置/输入同步密码（两台设备要一致）");
-    if(!pin) throw new Error("未设置密码");
-    localStorage.setItem(PIN_KEY, pin);
-  }
-  const hex = await _sha256Hex(pin);
-  return "main_" + hex.slice(0,24);
-}
-
-function changePIN(){
-  const pin = prompt("输入新的同步密码（两台设备要一致）");
-  if(!pin) return;
-  localStorage.setItem(PIN_KEY, pin);
-  _setCloudStatus("已设置新密码（请重新保存/拉取）", true);
-}
-
 async function cloudSave(){
   try{
     _setCloudStatus("云端保存中…", true);
     const raw = _getLocalRaw();
     if(!raw) return _setCloudStatus("本地暂无数据（先在页面保存/或新增）", false);
-    const id = await _getRowId();
+
+    const client = await initSb();
+    if(!client) return _setCloudStatus("Supabase SDK 未就绪", false);
+
+    const sess = await __restoreSessionIfNeeded(client);
+    if(!sess) return _setCloudStatus("请先登录账号再保存到云端", false);
+
     let dataObj;
     try{ dataObj = JSON.parse(raw); }catch{ dataObj = raw; }
-    const payload = [{ id, data:dataObj, updated_at:_nowIso() }];
-    const res = await fetch(REST + "?on_conflict=id", {
-      method:"POST",
-      headers:await _supabaseHeaders({"Prefer":"resolution=merge-duplicates,return=representation"}),
-      body: JSON.stringify(payload)
-    });
-    const txt = await res.text();
-    if(!res.ok) return _setCloudStatus("保存失败：" + txt.slice(0,200), false);
-    _setCloudStatus("✅ 云端已保存", true);
+
+    const payload = { id: sess.user.id, data: dataObj, updated_at: _nowIso() };
+
+    const { error } = await client
+      .from(TABLE_STATE)
+      .upsert(payload, { onConflict: "id" });
+
+    if(error) return _setCloudStatus("保存失败：" + (error.message||String(error)), false);
+
+    _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
@@ -3264,36 +3308,39 @@ async function cloudSave(){
 async function cloudLoad(){
   try{
     _setCloudStatus("云端拉取中…", true);
-    const id = await _getRowId();
-    const res = await fetch(REST + "?id=eq." + encodeURIComponent(id) + "&select=data,updated_at", {
-      method:"GET",
-      headers:await _supabaseHeaders()
-    });
-    const txt = await res.text();
-    if(!res.ok) return _setCloudStatus("拉取失败：" + txt.slice(0,200), false);
-    const arr = JSON.parse(txt);
-    if(!arr.length) return _setCloudStatus("云端暂无数据（先用同一密码点保存）", false);
-    const row = arr[0];
 
-    _setLocalRaw(JSON.stringify(row.data));
-    _setCloudStatus("✅ 已拉取（" + (row.updated_at||"") + "）", true);
+    const client = await initSb();
+    if(!client) return _setCloudStatus("Supabase SDK 未就绪", false);
 
-    // ✅ 不再强制刷新页面（刷新会导致某些手机浏览器 session 恢复慢，从而误判未登录）
-try{
-  const dataObj = row.data;
-  // row.data 通常就是订单数组；兼容未来可能的对象封装
-  if(Array.isArray(dataObj)){
-    orders = dataObj;
-  }else if(dataObj && Array.isArray(dataObj.orders)){
-    orders = dataObj.orders;
-  }else{
-    orders = [];
-  }
+    const sess = await __restoreSessionIfNeeded(client);
+    if(!sess) return _setCloudStatus("请先登录账号再从云端拉取", false);
 
-  if(typeof renderTable === "function") renderTable();
-  if(typeof updateTotalProfit === "function") updateTotalProfit();
-  if(typeof showToast === "function") showToast("已拉取云端数据", "success");
-}catch(e){}
+    const { data, error } = await client
+      .from(TABLE_STATE)
+      .select("data,updated_at")
+      .eq("id", sess.user.id)
+      .maybeSingle();
+
+    if(error) return _setCloudStatus("拉取失败：" + (error.message||String(error)), false);
+    if(!data) return _setCloudStatus("云端暂无数据（先点击云端保存）", false);
+
+    _setLocalRaw(JSON.stringify(data.data));
+    _setCloudStatus("✅ 已拉取（" + (data.updated_at||"") + "）", true);
+
+    // ✅ 不再强制刷新页面
+    try{
+      const dataObj = data.data;
+      if(Array.isArray(dataObj)){
+        orders = dataObj;
+      }else if(dataObj && Array.isArray(dataObj.orders)){
+        orders = dataObj.orders;
+      }else{
+        orders = [];
+      }
+      if(typeof renderTable === "function") renderTable();
+      if(typeof updateTotalProfit === "function") updateTotalProfit();
+      if(typeof showToast === "function") showToast("已拉取云端数据", "success");
+    }catch(e){}
   }catch(e){
     _setCloudStatus("拉取异常：" + (e?.message||e), false);
   }
@@ -3328,8 +3375,8 @@ function mountCloudBar(){
   bar.innerHTML = `
     <button class="action-btn btn-cloud-save" id="btnCloudSave"><i class="fas fa-cloud-arrow-up"></i> 保存</button>
     <button class="action-btn btn-cloud-load" id="btnCloudLoad"><i class="fas fa-cloud-arrow-down"></i> 拉取</button>
-    <button class="action-btn btn-cloud-pin" id="btnCloudPIN"><i class="fas fa-key"></i> 密码</button>
-    <button class="action-btn btn-cloud-diag" id="btnCloudDiag"><i class="fas fa-stethoscope"></i> 诊断</button>
+    <button class="action-btn btn-cloud-more" id="btnMore"><i class="fas fa-ellipsis-h"></i> 更多</button>
+<button class="action-btn btn-cloud-diag" id="btnCloudDiag"><i class="fas fa-stethoscope"></i> 诊断</button>
     <div id="cloudStatus" style="font-size:12px;color:#d1fae5;opacity:.9;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">云端：未同步</div>
   `;
   const slot = document.getElementById("topRightCloudActions") || document.querySelector(".header") || document.body;
@@ -3337,7 +3384,7 @@ function mountCloudBar(){
 
   document.getElementById("btnCloudSave").onclick = cloudSave;
   document.getElementById("btnCloudLoad").onclick = cloudLoad;
-  document.getElementById("btnCloudPIN").onclick = changePIN;}
+  }
 window.addEventListener("load", mountCloudBar);
 
 window.addEventListener("load", ()=>{
@@ -3475,11 +3522,7 @@ window.addEventListener("load", ()=>{
     el.textContent = await idText();
   }
   window.addEventListener("load", refresh);
-  document.addEventListener("click", (e)=>{
-    const t=e.target;
-    if(t && (t.id==="btnCloudPIN" || (t.closest && t.closest("#btnCloudPIN")))) setTimeout(refresh, 350);
-  }, true);
-  const oldSave = window.cloudSave;
+const oldSave = window.cloudSave;
   if(typeof oldSave==="function") window.cloudSave = async function(){ await oldSave(); await refresh(); };
   const oldLoad = window.cloudLoad;
   if(typeof oldLoad==="function") window.cloudLoad = async function(){ await oldLoad(); await refresh(); };
@@ -3643,7 +3686,29 @@ window.addEventListener("load", ()=>{
       </div>
       <div id="amMsg" class="am-msg"></div>
 
-      <div class="admin-box" id="adminBox">
+      <div id="amSupport" style="margin-top:10px;font-size:12px;color:#555;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>客服微信：<b id="amKfWx">pinking0000</b></span>
+        <button id="amCopyWx" class="ghost" style="border:1px solid #ddd;background:#fff;color:#2c3e50;border-radius:10px;padding:6px 10px;cursor:pointer">复制</button>
+      </div>
+
+      
+      <details id="amPwBox" style="margin-top:10px;display:none">
+        <summary style="cursor:pointer;font-size:12px;color:#555">修改登录密码（与“云端同步密码/数据密码”无关）</summary>
+        <div style="margin-top:8px">
+          <label style="margin-top:6px">新登录密码</label>
+          <input id="amNewPass1" type="password" placeholder="请输入新密码（建议至少8位）" autocomplete="new-password">
+          <label style="margin-top:6px">确认新密码</label>
+          <input id="amNewPass2" type="password" placeholder="再次输入新密码" autocomplete="new-password">
+          <div class="am-row" style="margin-top:8px">
+            <button id="amChangePw">修改登录密码</button>
+          </div>
+          <div style="font-size:12px;color:#777;line-height:1.4">
+            提示：修改的是【账号登录密码】。不会影响你用于“云端保存/拉取”的数据密码（🔑按钮）。
+          </div>
+        </div>
+      </details>
+
+<div class="admin-box" id="adminBox">
         <div style="font-weight:700;margin-bottom:6px">管理员面板（仅管理员邮箱可见）</div>
         <div style="font-size:12px;color:#555;margin-bottom:8px">
           这里控制“是否允许登录”。被禁用的账号登录后会立刻被退出，并提示“账号已被管理员禁用”。
