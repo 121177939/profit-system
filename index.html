@@ -2828,6 +2828,44 @@ async function initSb(){
   return sb;
 }
 
+  // === 手动兜底持久化（解决部分手机浏览器/localStorage异常导致刷新掉线）===
+  const __MANUAL_SESSION_KEY = "manual_supabase_session_v1";
+  function __saveManualSession(session){
+    try{
+      if(!session) return;
+      localStorage.setItem(__MANUAL_SESSION_KEY, JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      }));
+    }catch(e){}
+  }
+  function __loadManualSession(){
+    try{
+      const raw = localStorage.getItem(__MANUAL_SESSION_KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(!obj || !obj.access_token || !obj.refresh_token) return null;
+      return obj;
+    }catch(e){ return null; }
+  }
+  async function __restoreSessionIfNeeded(client){
+    try{
+      const { data } = await client.auth.getSession();
+      if(data?.session) return data.session;
+    }catch(e){}
+    const ms = __loadManualSession();
+    if(!ms) return null;
+    try{
+      const { data, error } = await client.auth.setSession(ms);
+      if(error) return null;
+      const sess = data?.session || null;
+      if(sess) __saveManualSession(sess);
+      return sess;
+    }catch(e){
+      return null;
+    }
+  }
+
 async function refreshAuth(sessionFromEvent){
   const client = await initSb();
   if(!client){
@@ -2840,10 +2878,10 @@ async function refreshAuth(sessionFromEvent){
   let session = sessionFromEvent || null;
   if(!session){
     try{
-      const { data } = await client.auth.getSession();
-      session = data?.session || null;
+      const sess = await __restoreSessionIfNeeded(client);
+      session = sess || null;
     }catch(e){}
-  }
+}
 
   __currentUser = session?.user || null;
 
@@ -2899,8 +2937,8 @@ async function refreshAuth(sessionFromEvent){
 async function getAccessToken(){
   const client = await initSb();
   if(!client) return null;
-  const { data: { session } } = await client.auth.getSession();
-  return session?.access_token || null;
+  const sess = await __restoreSessionIfNeeded(client);
+  return sess?.access_token || null;
 }
 
 // 覆盖 headers：用用户 token 走 RLS
@@ -3045,7 +3083,8 @@ function bindAccountUI(){
     if(!email || !pass) return amMsg("请输入邮箱和密码");
     const client = await initSb();
     if(!client) return;
-    const { error } = await client.auth.signInWithPassword({ email, password: pass });
+    const { data, error } = await client.auth.signInWithPassword({ email, password: pass });
+    if(!error) __saveManualSession(data?.session);
     if(error) return amMsg(error.message||String(error));
     await refreshAuth(null);
   };
