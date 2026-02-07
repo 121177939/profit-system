@@ -1,5 +1,5 @@
-const CACHE_NAME = "order-system-v20-20260207-more1_importfix";
-const APP_SHELL = ["./manifest.json","./icon-192.png","./icon-512.png","./sw.js"];
+const CACHE_NAME = "order-system-v20-20260208-adminfix-importlock2";
+const APP_SHELL = ["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png","./sw.js"];
 self.addEventListener("install",(e)=>{
   e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting()));
 });

@@ -1140,7 +1140,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 admin-create+reset+importlock2</span>
         </div>
     </div>
     
@@ -1976,6 +1976,8 @@ window.__DIRTY_LOCAL__ = false;
                 } catch (error) {
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
+                } finally {
+                    window.__IMPORT_LOCK__ = false;
                 }
             };
             
@@ -3235,6 +3237,78 @@ function bindAccountUI(){
   };
 
   if(refresh) refresh.onclick = loadAdminList;
+  // 管理员工具：新建账号 / 重置密码（仅在管理员面板显示时可用）
+  const btnCreate = document.getElementById("adminCreateUserBtn");
+  const btnReset  = document.getElementById("adminResetPwdBtn");
+
+  async function _callEdge(fnName, body){
+    const headers = await _supabaseHeaders();
+    const url = SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fnName;
+    const resp = await fetch(url, { method:"POST", headers, body: JSON.stringify(body||{}) });
+    let json = null;
+    try{ json = await resp.json(); }catch(e){}
+    if(!resp.ok){
+      const msg = (json && (json.error||json.message)) ? (json.error||json.message) : (resp.status + " " + resp.statusText);
+      throw new Error(msg);
+    }
+    if(json && json.error) throw new Error(json.error);
+    return json;
+  }
+
+  function _genStrongPw(len=12){
+    const chars="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+    let out="";
+    for(let i=0;i<len;i++) out += chars[Math.floor(Math.random()*chars.length)];
+    return out;
+  }
+
+  if(btnCreate) btnCreate.onclick = async () => {
+    try{
+      const email = (prompt("请输入新用户邮箱（必须未注册）：")||"").trim();
+      if(!email) return;
+      let pw = (prompt("请输入初始密码（留空自动生成强密码）：")||"").trim();
+      if(!pw) pw = _genStrongPw(12);
+      if(pw.length < 8){
+        alert("密码至少8位");
+        return;
+      }
+      amMsg("创建中…", true);
+      // 约定 Edge Function 名：admin-create-user
+      const res = await _callEdge("admin-create-user", {
+        admin_email: (__currentUser?.email||""),
+        target_email: email,
+        target_password: pw
+      });
+      alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
+      try{ loadAdminList(); }catch(e){}
+    }catch(e){
+      alert("创建失败：" + (e?.message||e));
+    }
+  };
+
+  if(btnReset) btnReset.onclick = async () => {
+    try{
+      const email = (prompt("请输入要重置密码的用户邮箱：")||"").trim();
+      if(!email) return;
+      let pw = (prompt("请输入新密码（留空自动生成强密码）：")||"").trim();
+      if(!pw) pw = _genStrongPw(12);
+      if(pw.length < 8){
+        alert("密码至少8位");
+        return;
+      }
+      amMsg("重置中…", true);
+      // 约定 Edge Function 名：reset-password
+      const res = await _callEdge("reset-password", {
+        admin_email: (__currentUser?.email||""),
+        target_email: email,
+        new_password: pw
+      });
+      alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
+    }catch(e){
+      alert("重置失败：" + (e?.message||e));
+    }
+  };
+
 ;
 }
 
@@ -3333,6 +3407,12 @@ async function cloudLoad(){
 
     if(error) return _setCloudStatus("拉取失败：" + (error.message||String(error)), false);
     if(!data) return _setCloudStatus("云端暂无数据（先点击云端保存）", false);
+
+    // 二次保护：如果拉取过程中用户进行了导入/编辑（本地脏数据），不要覆盖
+    if(window.__IMPORT_LOCK__ || window.__DIRTY_LOCAL__){
+      _setCloudStatus("⚠️ 已跳过覆盖：本地有未保存导入/修改", false);
+      return;
+    }
 
     _setLocalRaw(JSON.stringify(data.data));
     _setCloudStatus("✅ 已拉取（" + (data.updated_at||"") + "）", true);
@@ -3725,14 +3805,13 @@ const oldSave = window.cloudSave;
         </div>
         <div class="am-row" style="margin-top:0">
           <button id="adminRefresh">刷新用户列表</button>
-<div id="adminExtraTools" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-  <button id="btnCreateUser" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
-  <button id="btnResetPassword" style="flex:1;min-width:140px;background:#b91c1c;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">重置密码</button>
-</div>
-
-      <button id="btnCreateUser" class="btn" style="display:none; margin-top:10px;">新建账号</button>
-      <button id="btnResetPassword" class="btn" style="display:none; margin-top:10px;">重置用户密码</button>
         </div>
+
+        <div id="adminTools" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="adminCreateUserBtn" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
+          <button id="adminResetPwdBtn" style="flex:1;min-width:140px;background:#b91c1c;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">重置密码</button>
+        </div>
+
         <div style="overflow:auto;max-height:220px;margin-top:8px">
           <table>
             <thead>
