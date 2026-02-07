@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>商业订单利润管理系统 v20.7（最终稳定版）</title>
 
+<script>
+/* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
+(function(){
+  try{
+    var h = location.hostname;
+    if(h === 'liruna.icu'){
+      location.replace('https://www.liruna.icu' + location.pathname + location.search + location.hash);
+    }
+  }catch(e){}
+})();
+</script>
+
+
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2c3e50">
