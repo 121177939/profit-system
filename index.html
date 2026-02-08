@@ -8,8 +8,6 @@
 <script>
 window.__IMPORT_LOCK__ = false;
 window.__DIRTY_LOCAL__ = false;
-    window.__DATA_MODE__ = 'remote';
-    window.__IMPORT_LOCK__ = false;
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
   try{
@@ -2413,7 +2411,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
         }
 
         // 从表格中更新订单数据
-        function updateOrdersFromTable() {
+        function updateOrdersFromTable(){
+  if(!window.__ALLOW_DOM_TO_ORDERS__){ return; }
+
             const rows = tableBody.querySelectorAll('tr');
             
             // 遍历所有行
@@ -2554,10 +2554,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
         function importFromExcel(file) {
             if (!file) return;
             window.__IMPORT_LOCK__ = true;
-                        __importedOk = true;
-const reader = new FileReader();
+            
+            const reader = new FileReader();
             reader.onload = function(e) {
-                let __importedOk = false;
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
@@ -2590,13 +2589,9 @@ const reader = new FileReader();
                     // 确认导入
                     if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
-                        // ✅ 导入后立即写入本地缓存一份，避免后续流程清空
-                        try{ _setLocalRaw(JSON.stringify(orders)); }catch(e){}
                         window.__DIRTY_LOCAL__ = true;
-                        // 导入草稿态：不允许任何自动云端拉取覆盖
-                        window.__DATA_MODE__ = 'import_draft';
-                        window.__IMPORT_LOCK__ = true;
-try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
+                        window.__IMPORT_LOCK__ = false;
+                        try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
 
                         // 重置排序状态为日期降序
                         dateSortState = 'desc';
@@ -2611,9 +2606,7 @@ try{ if(typeof showToast==='function') showToast('导入成功，请点击云端
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
                 } finally {
-                    if (!__importedOk) {
-                        window.__IMPORT_LOCK__ = false;
-                    }
+                    window.__IMPORT_LOCK__ = false;
                 }
             };
             
@@ -4231,6 +4224,8 @@ const ADMIN_EMAIL = "912872449@qq.com";
 let sb = null;
 
 let __currentUser = null;
+window.__ALLOW_DOM_TO_ORDERS__ = false; // 仅保存时允许 DOM→orders
+
 let __loginEnabled = false;
 
 // 账号开关（未登录禁用保存/新增/导入/导出）
@@ -4433,8 +4428,8 @@ async function refreshAuth(sessionFromEvent){
     hideAdminUI();
   }
 
-  // 登录后自动拉取云端（已禁用：避免导入/本地编辑被覆盖）
-  // try{ await cloudLoad(); }catch(e){}
+  // 登录后自动拉取云端（不改变UI，只刷新数据）
+  try{ await cloudLoad(); }catch(e){}
 }
 
 
@@ -4871,17 +4866,9 @@ async function cloudSave(){
 }
 
 async function cloudLoad(){
-  if(window.__DATA_MODE__ === 'import_draft'){
-    const ok = confirm('当前有未保存的导入/本地修改草稿。继续从云端拉取会覆盖本地草稿，是否继续？');
-    if(!ok) return;
-    // 用户确认覆盖：退出草稿态
-    window.__DATA_MODE__ = 'remote';
-    window.__DIRTY_LOCAL__ = false;
-    window.__IMPORT_LOCK__ = false;
-  }
   if(window.__IMPORT_LOCK__){ return; }
   if(window.__DIRTY_LOCAL__){ return; }
-try{
+  try{
     _setCloudStatus("云端拉取中…", true);
 
     const client = await initSb();
