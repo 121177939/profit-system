@@ -61,7 +61,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -149,7 +149,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -179,6 +179,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -234,7 +277,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -322,7 +365,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -352,6 +395,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
@@ -398,7 +484,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -486,7 +572,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -516,6 +602,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 <style>
@@ -1629,7 +1758,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.6</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.7</span>
         </div>
     </div>
     
@@ -2981,7 +3110,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3069,7 +3198,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3099,6 +3228,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 <script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
@@ -3145,7 +3317,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3233,7 +3405,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3263,6 +3435,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 <script>
@@ -3435,7 +3650,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3523,7 +3738,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3553,6 +3768,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -3771,7 +4029,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3859,7 +4117,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3889,6 +4147,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -4715,7 +5016,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -4803,7 +5104,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -4833,6 +5134,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -4952,7 +5296,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5040,7 +5384,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5070,6 +5414,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -5147,7 +5534,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5235,7 +5622,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5265,6 +5652,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -5338,7 +5768,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5426,7 +5856,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5456,6 +5886,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -5552,7 +6025,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5640,7 +6113,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5670,6 +6143,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
@@ -5798,7 +6314,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5886,7 +6402,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await _callEdge("admin-delete-user", {
+          await __callEdgeGlobal("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5916,6 +6432,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(n>40) clearInterval(t); // 20秒足够等你弹窗渲染
   }, 500);
 });
+
+
+// v7.7: global Edge Function caller (avoid _callEdge scope issues)
+async function __callEdgeGlobal(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName;
+
+  // ensure session
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("No Authorization Bearer token");
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(bodyObj || {})
+  });
+
+  const txt = await resp.text();
+  let json = null;
+  try{ json = JSON.parse(txt); }catch(e){}
+
+  if(!resp.ok){
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+  }
+  return json ?? txt;
+}
 
 </script>
 
