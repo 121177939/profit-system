@@ -17,6 +17,83 @@ window.__DIRTY_LOCAL__ = false;
     }
   }catch(e){}
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -27,8 +104,162 @@ window.__DIRTY_LOCAL__ = false;
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js">
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
+</script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
+</script>
 <style>
         * {
             margin: 0;
@@ -1140,7 +1371,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.4</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.5</span>
         </div>
     </div>
     
@@ -2448,8 +2679,162 @@ window.__DIRTY_LOCAL__ = false;
                 closeScanner();
             }
         });
-    </script>
-<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
+    
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
+</script>
+<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
+</script>
 <script>
 /* ========= 计算器：弹窗居中 + 可拖动（移动端触摸拖动） ========= */
 (function(){
@@ -2576,6 +2961,83 @@ window.__DIRTY_LOCAL__ = false;
     if(calc.classList.contains("show")) clamp();
   });
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -2749,6 +3211,83 @@ window.__DIRTY_LOCAL__ = false;
     if(input) start(input);
   });
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -3530,6 +4069,83 @@ window.addEventListener("load", ()=>{
     _setCloudStatus("✅ 已拉取并刷新", true);
   }
 });
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -3604,6 +4220,83 @@ window.addEventListener("load", ()=>{
     }
   }
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -3636,6 +4329,83 @@ window.addEventListener("load", ()=>{
     }
   }, true); // true = 捕获阶段
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -3664,6 +4434,83 @@ const oldSave = window.cloudSave;
   const oldLoad = window.cloudLoad;
   if(typeof oldLoad==="function") window.cloudLoad = async function(){ await oldLoad(); await refresh(); };
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -3715,6 +4562,83 @@ const oldSave = window.cloudSave;
   const oldLoad = window.cloudLoad;
   if(typeof oldLoad==="function") window.cloudLoad = async function(){ await oldLoad(); await refresh(); };
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
@@ -3798,6 +4722,83 @@ const oldSave = window.cloudSave;
     };
   }
 })();
+
+// v7.5: ensure admin delete button exists and admin buttons are horizontal
+function __ensureAdminButtonsRow(){
+  try{
+    const panel = document.getElementById("adminPanel");
+    if(!panel) return;
+
+    const createBtn = document.getElementById("adminCreateUserBtn");
+    const resetBtn = document.getElementById("adminResetPwdBtn");
+    if(!createBtn || !resetBtn) return;
+
+    // wrap into a row container
+    let row = document.getElementById("adminBtnRow");
+    if(!row){
+      row = document.createElement("div");
+      row.id = "adminBtnRow";
+      row.className = "am-row";
+      row.style.marginTop = "8px";
+      // insert before existing create button
+      createBtn.parentNode.insertBefore(row, createBtn);
+    }
+
+    // move existing buttons into row
+    row.appendChild(createBtn);
+    row.appendChild(resetBtn);
+
+    // create delete button if missing
+    let delBtn = document.getElementById("adminDeleteUserBtn");
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.id = "adminDeleteUserBtn";
+      delBtn.className = "ghost";
+      delBtn.innerText = "删除账号";
+      delBtn.style.border = "1px solid #c0392b";
+      delBtn.style.color = "#c0392b";
+      row.appendChild(delBtn);
+
+      delBtn.onclick = async ()=>{
+        try{
+          const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+          amMsg("删除中…", true);
+          await _callEdge("admin-delete-user", {
+            admin_email: (__currentUser?.email || ""),
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+          try{ loadAdminList(); }catch(e){}
+        }catch(e){
+          alert("删除失败：" + (e?.message || e));
+        }
+      };
+    }
+
+    // force same width
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    [createBtn, resetBtn, delBtn].forEach(b=>{
+      if(!b) return;
+      b.style.flex = "1";
+      b.style.minWidth = "0";
+    });
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  let n=0;
+  const t=setInterval(()=>{
+    __ensureAdminButtonsRow();
+    n++;
+    if(n>20) clearInterval(t);
+  }, 500);
+});
+
 </script>
 
 
