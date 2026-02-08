@@ -1140,7 +1140,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix4</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix5</span>
         </div>
     </div>
     
@@ -3014,7 +3014,7 @@ async function _supabaseHeaders(extra={}){
   // 必须使用当前登录用户的 access_token（JWT），不能用 anon/publishable key 代替
   const token = await getAccessToken();
   if(!token){
-    throw new Error("会话已失效：请退出后重新登录（Invalid JWT）");
+    throw new Error("会话已失效：未拿到 access_token（请退出后重新登录）。如果仍 401，请到 Supabase Invocations Raw 检查是否真的发送了 Authorization 头。" );
   }
   return Object.assign({
     "apikey": SUPABASE_KEY,
