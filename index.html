@@ -219,33 +219,11 @@ async function __callEdgeGlobal(fnName, bodyObj){
 
 
 // v7.9: Edge caller using JSON body access_token (mobile WebView safe, same as _callEdge)
-async function __callEdgeBodyToken(fnName, bodyObj){
-  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
-  const url = base + fnName + "?t=" + Date.now();
-
-  // 获取 session.access_token
-  let session = null;
-  try{
-    const { data } = await supabase.auth.getSession();
-    session = data?.session || null;
-  }catch(e){}
-
-  if(!session){
-    try{
-      const { data } = await supabase.auth.refreshSession();
-      session = data?.session || null;
-    }catch(e){}
-  }
-
-  if(!session || !session.access_token){
-    throw new Error("会话失效：No Authorization Bearer token");
-  }
-
-  // 合并 body（确保 email 不会丢失）
-  const payload = Object.assign({}, (bodyObj||{}), {
-    access_token: session.access_token
-  });
-
+async function __callEdgeBodyToken(fnName, body){
+  const token = await getAccessToken();
+  if(!token) throw new Error("会话已失效：未获取到 access_token（请退出后重新登录）");
+  const url = SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fnName + "?t=" + Date.now();
+  const payload = Object.assign({ access_token: token }, (body||{}));
   const resp = await fetch(url, {
     method: "POST",
     mode: "cors",
@@ -256,15 +234,12 @@ async function __callEdgeBodyToken(fnName, bodyObj){
     },
     body: JSON.stringify(payload)
   });
-
-  const txt = await resp.text();
   let json = null;
-  try{ json = JSON.parse(txt); }catch(e){}
-
+  try{ json = await resp.json(); }catch(e){}
   if(!resp.ok){
-    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
+    const msg = (json && (json.error||json.message)) ? (json.error||json.message) : (resp.status + " " + resp.statusText);
+    throw new Error(msg);
   }
-
   if(json && json.error) throw new Error(json.error);
   return json;
 }
@@ -4781,7 +4756,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：admin-create-user
       const res = await _callEdge("admin-create-user", {
         admin_email: (__currentUser?.email||""),
-        email: email,
+        target_email: email,
         target_password: pw
       });
       alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
@@ -4805,7 +4780,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：reset-password
       const res = await _callEdge("reset-password", {
         admin_email: (__currentUser?.email||""),
-        email: email,
+        target_email: email,
         new_password: pw
       });
       alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
