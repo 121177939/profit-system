@@ -8,10 +8,9 @@
 <script>
 window.__IMPORT_LOCK__ = false;
 window.__DIRTY_LOCAL__ = false;
-    // ✅ 云端保存成功：退出导入草稿态，恢复正常云端拉取
-    window.__DATA_MODE__ = 'remote';
-    window.__IMPORT_LOCK__ = false;
-window.__DATA_MODE__ = 'remote'; // remote | import_draft
+    window.__DATA_MODE__='remote';
+    window.__IMPORT_LOCK__=false;
+window.__DATA_MODE__ = 'remote';
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
   try{
@@ -2559,7 +2558,6 @@ async function __callEdgeGlobal(fnName, bodyObj){
             
             const reader = new FileReader();
             reader.onload = function(e) {
-                let __importedOk = false;
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
@@ -2594,8 +2592,6 @@ async function __callEdgeGlobal(fnName, bodyObj){
                         orders = importedOrders;
                         window.__DIRTY_LOCAL__ = true;
                         window.__DATA_MODE__ = 'import_draft';
-                        __importedOk = true;
-                        // ✅ 保持导入锁：避免任何自动云端拉取覆盖本地导入
                         window.__IMPORT_LOCK__ = true;
                         try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
 
@@ -2611,11 +2607,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
                 } catch (error) {
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
-                } finally {
-                    if (!__importedOk) {
-                        window.__IMPORT_LOCK__ = false;
-                    }
-                }
+                } finally { /* 导入成功保持锁，失败自动释放 */ }
             };
             
             reader.readAsArrayBuffer(file);
@@ -4434,8 +4426,8 @@ async function refreshAuth(sessionFromEvent){
     hideAdminUI();
   }
 
-  // 登录后自动拉取云端（不改变UI，只刷新数据）
-  try{ await cloudLoad(); }catch(e){}
+  // 登录后自动拉取云端（导入草稿态下跳过）
+  try{ if(window.__DATA_MODE__!=='import_draft') await cloudLoad(); }catch(e){}
 }
 
 
@@ -4864,7 +4856,7 @@ async function cloudSave(){
 
     _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
     window.__DIRTY_LOCAL__ = false;
-window.__DATA_MODE__ = 'remote'; // remote | import_draft
+window.__DATA_MODE__ = 'remote';
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
@@ -4873,7 +4865,6 @@ window.__DATA_MODE__ = 'remote'; // remote | import_draft
 }
 
 async function cloudLoad(){
-  if(window.__DATA_MODE__ === 'import_draft'){ return; }
   if(window.__IMPORT_LOCK__){ return; }
   if(window.__DIRTY_LOCAL__){ return; }
   try{
