@@ -1140,7 +1140,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix2</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix3</span>
         </div>
     </div>
     
@@ -2867,10 +2867,35 @@ async function initSb(){
       return obj;
     }catch(e){ return null; }
   }
+    async function __ensureFreshSession(client, session){
+    try{
+      if(!session) return null;
+      const nowSec = Math.floor(Date.now()/1000);
+      const exp = Number(session.expires_at||0);
+      // 如果已过期或将在 2 分钟内过期：主动 refresh，避免 Edge Function 报 Invalid JWT
+      if(exp && exp <= nowSec + 120){
+        const { data, error } = await client.auth.refreshSession();
+        if(error) throw error;
+        const s2 = data?.session || null;
+        if(s2){
+          try{ __saveManualSession(s2); }catch(e){}
+          return s2;
+        }
+      }
+      return session;
+    }catch(e){
+      // refresh 失败：返回原 session，让上层提示重新登录
+      return session;
+    }
+  }
+
   async function __restoreSessionIfNeeded(client){
     try{
       const { data } = await client.auth.getSession();
-      if(data?.session) return data.session;
+      if(data?.session){
+        const s = await __ensureFreshSession(client, data.session);
+        return s;
+      }
     }catch(e){}
     const ms = __loadManualSession();
     if(!ms) return null;
@@ -2878,8 +2903,9 @@ async function initSb(){
       const { data, error } = await client.auth.setSession(ms);
       if(error) return null;
       const sess = data?.session || null;
-      if(sess) __saveManualSession(sess);
-      return sess;
+      const sess2 = await __ensureFreshSession(client, sess);
+      if(sess2) __saveManualSession(sess2);
+      return sess2;
     }catch(e){
       return null;
     }
