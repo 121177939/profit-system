@@ -61,7 +61,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -149,7 +149,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -223,6 +223,33 @@ async function __callEdgeGlobal(fnName, bodyObj){
   return json ?? txt;
 }
 
+
+// v7.8: Edge caller using JSON body access_token (mobile WebView safe, same as _callEdge)
+async function __callEdgeBodyToken(fnName, body){
+  const token = await getAccessToken();
+  if(!token) throw new Error("会话已失效：未获取到 access_token（请退出后重新登录）");
+  const url = SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fnName + "?t=" + Date.now();
+  const payload = Object.assign({ access_token: token }, (body||{}));
+  const resp = await fetch(url, {
+    method: "POST",
+    mode: "cors",
+    cache: "no-store",
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  let json = null;
+  try{ json = await resp.json(); }catch(e){}
+  if(!resp.ok){
+    const msg = (json && (json.error||json.message)) ? (json.error||json.message) : (resp.status + " " + resp.statusText);
+    throw new Error(msg);
+  }
+  if(json && json.error) throw new Error(json.error);
+  return json;
+}
+
 </script>
 
 
@@ -277,7 +304,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -365,7 +392,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -484,7 +511,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -572,7 +599,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -1758,7 +1785,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.7</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.8</span>
         </div>
     </div>
     
@@ -3110,7 +3137,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3198,7 +3225,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3317,7 +3344,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3405,7 +3432,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3650,7 +3677,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -3738,7 +3765,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -4029,7 +4056,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -4117,7 +4144,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5016,7 +5043,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5104,7 +5131,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5296,7 +5323,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5384,7 +5411,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5534,7 +5561,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5622,7 +5649,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5768,7 +5795,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -5856,7 +5883,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -6025,7 +6052,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -6113,7 +6140,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -6314,7 +6341,7 @@ function __ensureAdminButtonsRow(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
@@ -6402,7 +6429,7 @@ function __ensureAdminDeleteButton(){
           if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
 
           amMsg("删除中…", true);
-          await __callEdgeGlobal("admin-delete-user", {
+          await __callEdgeBodyToken("admin-delete-user", {
             admin_email: (__currentUser?.email || ""),
             target_email: email
           });
