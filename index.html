@@ -6,15 +6,9 @@
     <title>商业订单利润管理系统 v20.7（最终稳定版）</title>
 
 <script>
-
+window.__IMPORT_LOCK__ = false;
 window.__DIRTY_LOCAL__ = false;
-    window.__DATA_MODE__ = 'remote';
-    window.__BLOCK_CLOUDLOAD__ = false; // 🔓 解除硬阻断
-    window.__IMPORT_LOCK__ = false;
-window.__DATA_MODE__ = 'remote';
-window.__BLOCK_CLOUDLOAD__ = false;
-// 保存原始 cloudLoad 引用（稍后包裹）
-window.__cloudLoadWrapped__ = false;
+window.__AUTO_LOGIN_SYNC_DISABLED__ = true; // 🚫 禁用所有登录后自动云端拉取（防止导入被覆盖）
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
   try{
@@ -2595,10 +2589,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
                     if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
                         window.__DIRTY_LOCAL__ = true;
-                        window.__DATA_MODE__ = 'import_draft';
-                        window.__BLOCK_CLOUDLOAD__ = true; // 🔒 硬阻断所有 cloudLoad
-
-                        
+                        window.__IMPORT_LOCK__ = false;
                         try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
 
                         // 重置排序状态为日期降序
@@ -2614,7 +2605,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
                 } finally {
-                    
+                    window.__IMPORT_LOCK__ = false;
                 }
             };
             
@@ -4435,7 +4426,8 @@ async function refreshAuth(sessionFromEvent){
   }
 
   // 登录后自动拉取云端（不改变UI，只刷新数据）
-  try{ await cloudLoad(); }catch(e){}
+  try{ // 🚫 已禁用登录后自动 cloudLoad（仅允许手动点击）
+}catch(e){}
 }
 
 
@@ -4864,10 +4856,7 @@ async function cloudSave(){
 
     _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
     window.__DIRTY_LOCAL__ = false;
-window.__DATA_MODE__ = 'remote';
-window.__BLOCK_CLOUDLOAD__ = false;
-// 保存原始 cloudLoad 引用（稍后包裹）
-window.__cloudLoadWrapped__ = false;
+window.__AUTO_LOGIN_SYNC_DISABLED__ = true; // 🚫 禁用所有登录后自动云端拉取（防止导入被覆盖）
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
@@ -4876,11 +4865,6 @@ window.__cloudLoadWrapped__ = false;
 }
 
 async function cloudLoad(){
-  if(window.__BLOCK_CLOUDLOAD__ || window.__DATA_MODE__ === 'import_draft'){
-    try{ _setCloudStatus('⚠️ 已阻止自动云端拉取（导入草稿态）', false); }catch(e){}
-    return;
-  }
-
   if(window.__IMPORT_LOCK__){ return; }
   if(window.__DIRTY_LOCAL__){ return; }
   try{
