@@ -1140,7 +1140,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix5</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix6</span>
         </div>
     </div>
     
@@ -3277,10 +3277,48 @@ function bindAccountUI(){
   const btnCreate = document.getElementById("adminCreateUserBtn");
   const btnReset  = document.getElementById("adminResetPwdBtn");
 
+
+  const btnDelete = document.getElementById("adminDeleteUserBtn");
+  if(btnDelete) btnDelete.onclick = async () => {
+    try{
+      const email = (prompt("请输入要删除的用户邮箱（危险操作，不可恢复）：")||"").trim();
+      if(!email) return;
+      const ok = confirm("确认删除账号？
+邮箱：" + email + "
+
+此操作不可恢复！");
+      if(!ok) return;
+      amMsg("删除中…", true);
+      await _callEdge("delete-user", {
+        admin_email: (__currentUser?.email||""),
+        target_email: email
+      });
+      alert("删除成功：" + email);
+      try{ loadAdminList(); }catch(e){}
+    }catch(e){
+      alert("删除失败：" + (e?.message||e));
+    }
+  };
+
   async function _callEdge(fnName, body){
-    const headers = await _supabaseHeaders();
-    const url = SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fnName;
-    const resp = await fetch(url, { method:"POST", headers, body: JSON.stringify(body||{}) });
+    // 注意：部分移动端 WebView 会吞掉 Authorization header，导致 Edge Function 永远 401。
+    // 因此这里改为把 access_token 放在 JSON body 里传给函数（函数端需关闭 Verify JWT 并手动校验）。
+    const token = await getAccessToken();
+    if(!token){
+      throw new Error("会话已失效：未拿到 access_token（请退出后重新登录）");
+    }
+    const url = SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fnName + "?t=" + Date.now();
+    const payload = Object.assign({ access_token: token }, (body||{}));
+    const resp = await fetch(url, {
+      method: "POST",
+      mode: "cors",
+      cache: "no-store",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
     let json = null;
     try{ json = await resp.json(); }catch(e){}
     if(!resp.ok){
@@ -3840,6 +3878,7 @@ const oldSave = window.cloudSave;
         <div id="adminTools" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
           <button id="adminCreateUserBtn" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
           <button id="adminResetPwdBtn" style="flex:1;min-width:140px;background:#b91c1c;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">重置密码</button>
+          <button id="adminDeleteUserBtn" class="am-btn am-btn-danger">删除账号</button>
         </div>
 
         <div style="overflow:auto;max-height:220px;margin-top:8px">
