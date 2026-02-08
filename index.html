@@ -18,29 +18,27 @@ window.__DIRTY_LOCAL__ = false;
   }catch(e){}
 })();
 
-// v7.2: ensure account modal buttons exist and are aligned
+// v7.3: ensure account modal buttons exist and are aligned (robust)
 function __ensureAccountModalButtons(){
   try{
     const modal = document.getElementById("accountModal");
-    if(!modal) return;
+    if(!modal) return false;
 
-    // Find logout button
     const btnLogout = document.getElementById("btnLogout");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+
+    // Add close button
     if(btnLogout && !document.getElementById("btnCloseAccount")){
       const btnClose = document.createElement("button");
       btnClose.id = "btnCloseAccount";
       btnClose.className = btnLogout.className || "btn btn-secondary";
       btnClose.innerText = "关闭";
       btnLogout.insertAdjacentElement("afterend", btnClose);
-
-      btnClose.onclick = ()=>{
-        try{ modal.style.display = "none"; }catch(e){}
-      };
+      btnClose.onclick = ()=>{ try{ modal.style.display = "none"; }catch(e){} };
     }
 
     // Wrap login/register/logout/close into a flex row
-    const btnLogin = document.getElementById("btnLogin");
-    const btnRegister = document.getElementById("btnRegister");
     if(btnLogin && btnRegister && btnLogout){
       let row = modal.querySelector(".btn-row");
       if(!row){
@@ -48,15 +46,15 @@ function __ensureAccountModalButtons(){
         row.className = "btn-row";
         btnLogin.parentNode.insertBefore(row, btnLogin);
       }
-      // move buttons into row in correct order
       [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
         if(b) row.appendChild(b);
       });
     }
 
-    // Ensure admin delete button exists
+    // Admin buttons
     const btnCreate = document.getElementById("btnAdminCreateUser");
     const btnReset = document.getElementById("btnAdminResetPwd");
+
     if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
       const btnDel = document.createElement("button");
       btnDel.id = "btnAdminDeleteUser";
@@ -70,11 +68,7 @@ function __ensureAccountModalButtons(){
           if(!email) return;
           if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
 
-          await _callEdge("delete-user", {
-            admin_email: __currentUser.email,
-            target_email: email
-          });
-
+          await _callEdge("delete-user", { admin_email: __currentUser.email, target_email: email });
           alert("删除成功：" + email);
         }catch(e){
           alert("删除失败：" + (e.message || e));
@@ -82,7 +76,6 @@ function __ensureAccountModalButtons(){
       };
     }
 
-    // Wrap admin buttons into flex row
     if(btnCreate && btnReset){
       let adminRow = modal.querySelector(".admin-row");
       if(!adminRow){
@@ -94,11 +87,24 @@ function __ensureAccountModalButtons(){
         if(b) adminRow.appendChild(b);
       });
     }
-  }catch(e){}
+
+    return true;
+  }catch(e){
+    return false;
+  }
 }
 
-// call after modal open (also call immediately)
-setTimeout(__ensureAccountModalButtons, 500);
+// Run after DOM is ready, and keep trying (some browsers parse slowly / modal mounts later)
+window.addEventListener("DOMContentLoaded", ()=>{
+  __ensureAccountModalButtons();
+  // keep retrying for a short period
+  let tries = 0;
+  const timer = setInterval(()=>{
+    tries++;
+    const ok = __ensureAccountModalButtons();
+    if(ok || tries >= 20) clearInterval(timer);
+  }, 500);
+});
 
 </script>
 
@@ -1422,7 +1428,7 @@ setTimeout(__ensureAccountModalButtons, 500);
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.2</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.3</span>
         </div>
     </div>
     
