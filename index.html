@@ -1026,6 +1026,18 @@ window.__DIRTY_LOCAL__ = false;
 #accountModal .toggle{cursor:pointer}
 #accountModal .sqlbox{width:100%;height:120px;font-size:11px;padding:8px;border:1px solid #ddd;border-radius:10px;background:#fafafa}
 
+
+/* v7.1 UI: admin buttons align with login/register style */
+.admin-row{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+.admin-row .btn{
+  flex:1;
+  min-width:0;
+}
+
 </style>
 
 <style>
@@ -1140,7 +1152,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.1</span>
         </div>
     </div>
     
