@@ -1140,7 +1140,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix2</span>
         </div>
     </div>
     
@@ -3338,13 +3338,7 @@ if(document.readyState === 'loading'){
 }
 // ===================== === Supabase Auth账号系统 结束 =====================
 
-function _supabaseHeaders(extra={}){
-  return Object.assign({
-    "apikey": SUPABASE_KEY,
-    "Authorization": "Bearer " + SUPABASE_KEY,
-    "Content-Type": "application/json"
-  }, extra);
-}
+// _supabaseHeaders 已在上方定义（使用登录用户的 access_token）；这里不再覆盖。
 function _nowIso(){ return new Date().toISOString(); }
 function _getLocalRaw(){ return localStorage.getItem(LOCAL_KEY); }
 function _setLocalRaw(v){ localStorage.setItem(LOCAL_KEY, v); }
