@@ -1,4 +1,4 @@
-const CACHE_NAME = "order-jwtfix73";
+const CACHE_NAME = "jwtfix74";
 const APP_SHELL = ["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png","./sw.js"];
 self.addEventListener("install",(e)=>{
   e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting()));
