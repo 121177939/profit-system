@@ -4781,7 +4781,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：admin-create-user
       const res = await _callEdge("admin-create-user", {
         admin_email: (__currentUser?.email||""),
-        email: email,
+        target_email: email,
         target_password: pw
       });
       alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
