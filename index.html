@@ -6,7 +6,7 @@
     <title>商业订单利润管理系统 v20.7（最终稳定版）</title>
 
 <script>
-// import lock kept until cloud save
+window.__IMPORT_LOCK__ = false;
 window.__DIRTY_LOCAL__ = false;
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
@@ -2553,7 +2553,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
             if (!file) return;
             window.__IMPORT_LOCK__ = true;
             
-            const reader = new FileReader();
+            
+            let __importedOk = false;
+const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
@@ -2588,8 +2590,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
                     if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
                         window.__DIRTY_LOCAL__ = true;
-                        // import lock kept until cloud save
-                        try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
+                        __importedOk = true;
+                        // 保持 IMPORT_LOCK：直到用户云端保存或放弃导入
+try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
 
                         // 重置排序状态为日期降序
                         dateSortState = 'desc';
@@ -2604,7 +2607,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
                 } finally {
-                    // import lock kept until cloud save
+                    if (!__importedOk) {
+                        window.__IMPORT_LOCK__ = false;
+                    }
                 }
             };
             
