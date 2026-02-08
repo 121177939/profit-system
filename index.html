@@ -17,6 +17,89 @@ window.__DIRTY_LOCAL__ = false;
     }
   }catch(e){}
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -27,8 +110,174 @@ window.__DIRTY_LOCAL__ = false;
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js">
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
+</script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
+</script>
 <style>
         * {
             margin: 0;
@@ -1038,6 +1287,27 @@ window.__DIRTY_LOCAL__ = false;
   min-width:0;
 }
 
+
+/* v7.2 UI: account modal button layout */
+#accountModal .btn-row{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+#accountModal .btn-row .btn{
+  flex:1;
+  min-width:0;
+}
+#accountModal .admin-row{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+#accountModal .admin-row .btn{
+  flex:1;
+  min-width:0;
+}
+
 </style>
 
 <style>
@@ -1152,7 +1422,7 @@ window.__DIRTY_LOCAL__ = false;
         </div>
         
         <div class="footer">
-            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.1</span>
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化<br><span style="opacity:.7;font-size:12px">build: 2026-02-08 jwt-fix7.2</span>
         </div>
     </div>
     
@@ -2460,8 +2730,174 @@ window.__DIRTY_LOCAL__ = false;
                 closeScanner();
             }
         });
-    </script>
-<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
+    
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
+</script>
+<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
+</script>
 <script>
 /* ========= 计算器：弹窗居中 + 可拖动（移动端触摸拖动） ========= */
 (function(){
@@ -2588,6 +3024,89 @@ window.__DIRTY_LOCAL__ = false;
     if(calc.classList.contains("show")) clamp();
   });
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -2761,6 +3280,89 @@ window.__DIRTY_LOCAL__ = false;
     if(input) start(input);
   });
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -3542,6 +4144,89 @@ window.addEventListener("load", ()=>{
     _setCloudStatus("✅ 已拉取并刷新", true);
   }
 });
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -3616,6 +4301,89 @@ window.addEventListener("load", ()=>{
     }
   }
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -3648,6 +4416,89 @@ window.addEventListener("load", ()=>{
     }
   }, true); // true = 捕获阶段
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -3676,6 +4527,89 @@ const oldSave = window.cloudSave;
   const oldLoad = window.cloudLoad;
   if(typeof oldLoad==="function") window.cloudLoad = async function(){ await oldLoad(); await refresh(); };
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -3727,6 +4661,89 @@ const oldSave = window.cloudSave;
   const oldLoad = window.cloudLoad;
   if(typeof oldLoad==="function") window.cloudLoad = async function(){ await oldLoad(); await refresh(); };
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
@@ -3810,6 +4827,89 @@ const oldSave = window.cloudSave;
     };
   }
 })();
+
+// v7.2: ensure account modal buttons exist and are aligned
+function __ensureAccountModalButtons(){
+  try{
+    const modal = document.getElementById("accountModal");
+    if(!modal) return;
+
+    // Find logout button
+    const btnLogout = document.getElementById("btnLogout");
+    if(btnLogout && !document.getElementById("btnCloseAccount")){
+      const btnClose = document.createElement("button");
+      btnClose.id = "btnCloseAccount";
+      btnClose.className = btnLogout.className || "btn btn-secondary";
+      btnClose.innerText = "关闭";
+      btnLogout.insertAdjacentElement("afterend", btnClose);
+
+      btnClose.onclick = ()=>{
+        try{ modal.style.display = "none"; }catch(e){}
+      };
+    }
+
+    // Wrap login/register/logout/close into a flex row
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    if(btnLogin && btnRegister && btnLogout){
+      let row = modal.querySelector(".btn-row");
+      if(!row){
+        row = document.createElement("div");
+        row.className = "btn-row";
+        btnLogin.parentNode.insertBefore(row, btnLogin);
+      }
+      // move buttons into row in correct order
+      [btnLogin, btnRegister, btnLogout, document.getElementById("btnCloseAccount")].forEach(b=>{
+        if(b) row.appendChild(b);
+      });
+    }
+
+    // Ensure admin delete button exists
+    const btnCreate = document.getElementById("btnAdminCreateUser");
+    const btnReset = document.getElementById("btnAdminResetPwd");
+    if(btnCreate && btnReset && !document.getElementById("btnAdminDeleteUser")){
+      const btnDel = document.createElement("button");
+      btnDel.id = "btnAdminDeleteUser";
+      btnDel.className = btnReset.className || "btn btn-danger";
+      btnDel.innerText = "删除账号";
+      btnReset.insertAdjacentElement("afterend", btnDel);
+
+      btnDel.onclick = async ()=>{
+        try{
+          const email = prompt("请输入要删除的账号邮箱：");
+          if(!email) return;
+          if(!confirm("确定删除账号：" + email + " ？删除后不可恢复！")) return;
+
+          await _callEdge("delete-user", {
+            admin_email: __currentUser.email,
+            target_email: email
+          });
+
+          alert("删除成功：" + email);
+        }catch(e){
+          alert("删除失败：" + (e.message || e));
+        }
+      };
+    }
+
+    // Wrap admin buttons into flex row
+    if(btnCreate && btnReset){
+      let adminRow = modal.querySelector(".admin-row");
+      if(!adminRow){
+        adminRow = document.createElement("div");
+        adminRow.className = "admin-row";
+        btnCreate.parentNode.insertBefore(adminRow, btnCreate);
+      }
+      [btnCreate, btnReset, document.getElementById("btnAdminDeleteUser")].forEach(b=>{
+        if(b) adminRow.appendChild(b);
+      });
+    }
+  }catch(e){}
+}
+
+// call after modal open (also call immediately)
+setTimeout(__ensureAccountModalButtons, 500);
+
 </script>
 
 
