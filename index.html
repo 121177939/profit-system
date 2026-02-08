@@ -2553,10 +2553,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
             if (!file) return;
             window.__IMPORT_LOCK__ = true;
             
-            
-            let __importedOk = false;
-const reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = function(e) {
+                let __importAccepted = false;
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
@@ -2590,9 +2589,10 @@ const reader = new FileReader();
                     if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
                         window.__DIRTY_LOCAL__ = true;
-                        __importedOk = true;
-                        // 保持 IMPORT_LOCK：直到用户云端保存或放弃导入
-try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
+                                                __importAccepted = true;
+                        window.__IMPORT_LOCK__ = true;
+// （修复）导入后保持锁，防止云端拉取覆盖
+                        try{ if(typeof showToast==='function') showToast('导入成功，请点击云端保存'); }catch(e){}
 
                         // 重置排序状态为日期降序
                         dateSortState = 'desc';
@@ -2607,7 +2607,7 @@ try{ if(typeof showToast==='function') showToast('导入成功，请点击云端
                     console.error('导入Excel时出错:', error);
                     showToast('导入失败: ' + error.message);
                 } finally {
-                    if (!__importedOk) {
+                    if(!__importAccepted){
                         window.__IMPORT_LOCK__ = false;
                     }
                 }
@@ -4859,6 +4859,7 @@ async function cloudSave(){
 
     _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
     window.__DIRTY_LOCAL__ = false;
+    try{ window.__IMPORT_LOCK__ = false; }catch(e){}
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
