@@ -1788,11 +1788,11 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 <div class="cloud-addon-panel">
   <div class="cloud-addon-card" id="addon-card">
-    <button onclick="alert('【STEP 2】登录占位：仅验证交互，不做任何云端操作')">🔐 登录</button>
-    <button onclick="alert('【STEP 2】退出占位：仅验证交互')">🚪 退出</button>
-    <button onclick="alert('【STEP 3】此功能尚未接入（必须手动）')">⬆️ 保存到云端</button>
-    <button onclick="alert('【STEP 3】此功能尚未接入（必须手动）')">⬇️ 从云端拉取</button>
-    <button onclick="alert('【STEP 4】管理员功能尚未接入')">👤 管理员</button>
+    <button id="cloudLoginBtn">🔐 登录</button>
+    <button id="cloudLogoutBtn">🚪 退出</button>
+    <button id="cloudSaveBtn">⬆️ 保存到云端</button>
+    <button id="cloudLoadBtn">⬇️ 从云端拉取</button>
+    <button id="cloudAdminBtn">👤 管理员</button>
   </div>
   <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
 </div>
@@ -2006,8 +2006,8 @@ document.addEventListener('DOMContentLoaded', function(){
     return b;
   }
 
-  const btnSave = makeBtn('', '#22c55e');
-  const btnLoad = makeBtn('', '#3b82f6');
+  const btnSave = makeBtn('☁️ 保存', '#22c55e');
+  const btnLoad = makeBtn('⬇️ 拉取', '#3b82f6');
   btnSave.addEventListener('click', function(){ window.saveSnapshotToCloud && window.saveSnapshotToCloud(); });
   btnLoad.addEventListener('click', function(){ window.loadSnapshotFromCloud && window.loadSnapshotFromCloud(); });
 
@@ -2125,94 +2125,100 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <script>
-/* ===== ☁️ 面板：云端按钮回归（仅调用地基 API） ===== */
+/* ======== ☁️面板封版绑定（无onclick；只调用地基API；刷新自动解锁） ======== */
 document.addEventListener('DOMContentLoaded', function(){
-  // 找到 ☁️ 面板容器（兜底）
-  let panel = document.querySelector('.cloud-panel') || document.querySelector('.addon-panel') || null;
-  if(!panel) return;
+  const $ = (id)=>document.getElementById(id);
 
-  // 避免重复插入
-  if(panel.querySelector('.cloud-snapshot-actions')) return;
-
-  const box = document.createElement('div');
-  box.className = 'cloud-snapshot-actions';
-  box.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:8px';
-
-  const btnSave = document.createElement('button');
-  btnSave.textContent = '☁️ 保存到云端';
-  btnSave.onclick = function(){
-    if(window.saveSnapshotToCloud) window.saveSnapshotToCloud();
-  };
-
-  const btnLoad = document.createElement('button');
-  btnLoad.textContent = '⬇️ 从云端拉取';
-  btnLoad.onclick = function(){
-    if(window.loadSnapshotFromCloud) window.loadSnapshotFromCloud();
-  };
-
-  box.appendChild(btnSave);
-  box.appendChild(btnLoad);
-  panel.appendChild(box);
-});
-</script>
-
-
-<script>
-/* ===== 清理☁️面板历史残留按钮 ===== */
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('button,div').forEach(function(el){
-    const t=(el.innerText||'').trim();
-    if(t==='保存到云端' || t==='从云端拉取'){
-      // 标记为历史残留的，直接移除
-      el.remove();
+  // 0) Session恢复：必须走 __setLoginState 才会解锁按钮
+  try{
+    if(window.__supa){
+      window.__supa.auth.getSession().then(function(res){
+        if(res && res.data && res.data.session){
+          if(typeof window.__setLoginState==='function') window.__setLoginState(true);
+          else window.__isLoggedIn = true;
+        }
+      });
     }
-  });
-});
-</script>
+  }catch(e){}
 
-<script>
-/* ===== ☁️ 面板：唯一合法云端按钮（绑定地基API） ===== */
-document.addEventListener('DOMContentLoaded', function(){
-  const panel = document.querySelector('.cloud-panel') 
-             || document.querySelector('.addon-panel') 
-             || document.querySelector('[data-cloud-panel]');
-  if(!panel) return;
+  // 1) 云端快照地基API（若不存在则创建；对齐 orders/localStorage；upsert）
+  (function ensureBaseApis(){
+    const LS_KEY='orderProfitData';
+    function getClient(){ return window.__supa || null; }
+    function getOrders(){
+      try{ return (typeof orders!=='undefined') ? orders : (JSON.parse(localStorage.getItem(LS_KEY))||[]); }
+      catch(e){ return []; }
+    }
+    function setOrders(next){
+      try{
+        if(typeof orders!=='undefined'){ orders = Array.isArray(next)?next:[]; }
+        localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(next)?next:[]));
+      }catch(e){}
+      if(typeof render==='function') render();
+    }
 
-  // 防止重复
-  if(panel.querySelector('.cloud-snapshot-actions')) return;
+    if(typeof window.saveSnapshotToCloud!=='function'){
+      window.saveSnapshotToCloud = async function(){
+        if(!window.__isLoggedIn){ alert('请先登录'); return; }
+        if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+        const c=getClient(); if(!c){ alert('Supabase 未初始化'); return; }
+        const r1=await c.auth.getUser(); if(r1.error||!r1.data||!r1.data.user){ alert('无法获取用户'); return; }
+        const uid=r1.data.user.id;
+        const payload={ id: uid, data: getOrders() };
+        const r2=await c.from('app_state_user').upsert(payload,{ onConflict:'id' });
+        if(r2.error){ alert('保存失败：'+r2.error.message); return; }
+        alert('已保存到云端');
+      };
+    }
+    if(typeof window.loadSnapshotFromCloud!=='function'){
+      window.loadSnapshotFromCloud = async function(){
+        if(!window.__isLoggedIn){ alert('请先登录'); return; }
+        const c=getClient(); if(!c){ alert('Supabase 未初始化'); return; }
+        const r1=await c.auth.getUser(); if(r1.error||!r1.data||!r1.data.user){ alert('无法获取用户'); return; }
+        const uid=r1.data.user.id;
+        const r2=await c.from('app_state_user').select('data').eq('id',uid).maybeSingle();
+        if(r2.error){ alert('拉取失败：'+r2.error.message); return; }
+        if(!r2.data || r2.data.data==null){ alert('云端暂无数据'); return; }
+        if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+        setOrders(r2.data.data);
+        alert('已从云端拉取');
+      };
+    }
+  })();
 
-  const box=document.createElement('div');
-  box.className='cloud-snapshot-actions';
-  box.style.cssText='margin-top:12px;display:flex;flex-direction:column;gap:10px';
-
-  function makeBtn(text){
-    const b=document.createElement('button');
-    b.textContent=text;
-    b.style.cssText='padding:12px;border-radius:14px;border:none;font-weight:700';
-    return b;
+  // 2) 绑定：用捕获 + stopImmediatePropagation，彻底压住历史监听
+  function bind(btn, fn){
+    if(!btn) return;
+    btn.addEventListener('click', function(e){
+      e.preventDefault(); e.stopPropagation();
+      if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+      fn();
+    }, true);
   }
 
-  const saveBtn=makeBtn('☁️ 保存到云端');
-  saveBtn.onclick=function(){
-    if(typeof window.saveSnapshotToCloud==='function'){
-      window.saveSnapshotToCloud();
-    }else{
-      alert('云端接口未就绪');
-    }
-  };
+  // 登录/退出：使用 Supabase Auth，并用 __setLoginState 解锁/上锁
+  bind($('cloudLoginBtn'), async function(){
+    if(!window.__supa){ alert('云端未初始化'); return; }
+    const email = prompt('请输入邮箱'); if(!email) return;
+    const pwd = prompt('请输入密码'); if(!pwd) return;
+    const r = await window.__supa.auth.signInWithPassword({ email: email, password: pwd });
+    if(r.error){ alert('登录失败：'+r.error.message); return; }
+    if(typeof window.__setLoginState==='function') window.__setLoginState(true);
+    else window.__isLoggedIn=true;
+    alert('登录成功');
+  });
 
-  const loadBtn=makeBtn('⬇️ 从云端拉取');
-  loadBtn.onclick=function(){
-    if(typeof window.loadSnapshotFromCloud==='function'){
-      window.loadSnapshotFromCloud();
-    }else{
-      alert('云端接口未就绪');
-    }
-  };
+  bind($('cloudLogoutBtn'), async function(){
+    try{ if(window.__supa) await window.__supa.auth.signOut(); }catch(e){}
+    if(typeof window.__setLoginState==='function') window.__setLoginState(false);
+    else window.__isLoggedIn=false;
+    alert('已退出');
+  });
 
-  box.appendChild(saveBtn);
-  box.appendChild(loadBtn);
-  panel.appendChild(box);
+  bind($('cloudSaveBtn'), function(){ window.saveSnapshotToCloud(); });
+  bind($('cloudLoadBtn'), function(){ window.loadSnapshotFromCloud(); });
+  bind($('cloudAdminBtn'), function(){ alert('【STEP 4】管理员功能尚未接入'); });
+
 });
 </script>
 
