@@ -2156,6 +2156,66 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+
+<script>
+/* ===== 清理☁️面板历史残留按钮 ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('button,div').forEach(function(el){
+    const t=(el.innerText||'').trim();
+    if(t==='保存到云端' || t==='从云端拉取'){
+      // 标记为历史残留的，直接移除
+      el.remove();
+    }
+  });
+});
+</script>
+
+<script>
+/* ===== ☁️ 面板：唯一合法云端按钮（绑定地基API） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  const panel = document.querySelector('.cloud-panel') 
+             || document.querySelector('.addon-panel') 
+             || document.querySelector('[data-cloud-panel]');
+  if(!panel) return;
+
+  // 防止重复
+  if(panel.querySelector('.cloud-snapshot-actions')) return;
+
+  const box=document.createElement('div');
+  box.className='cloud-snapshot-actions';
+  box.style.cssText='margin-top:12px;display:flex;flex-direction:column;gap:10px';
+
+  function makeBtn(text){
+    const b=document.createElement('button');
+    b.textContent=text;
+    b.style.cssText='padding:12px;border-radius:14px;border:none;font-weight:700';
+    return b;
+  }
+
+  const saveBtn=makeBtn('☁️ 保存到云端');
+  saveBtn.onclick=function(){
+    if(typeof window.saveSnapshotToCloud==='function'){
+      window.saveSnapshotToCloud();
+    }else{
+      alert('云端接口未就绪');
+    }
+  };
+
+  const loadBtn=makeBtn('⬇️ 从云端拉取');
+  loadBtn.onclick=function(){
+    if(typeof window.loadSnapshotFromCloud==='function'){
+      window.loadSnapshotFromCloud();
+    }else{
+      alert('云端接口未就绪');
+    }
+  };
+
+  box.appendChild(saveBtn);
+  box.appendChild(loadBtn);
+  panel.appendChild(box);
+});
+</script>
+
 </body>
 </html>
 
