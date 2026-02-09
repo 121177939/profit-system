@@ -1788,11 +1788,11 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 <div class="cloud-addon-panel">
   <div class="cloud-addon-card" id="addon-card">
-    <button onclick="alert('【STEP 2】登录占位：仅验证交互，不做任何云端操作')">🔐 登录</button>
-    <button onclick="alert('【STEP 2】退出占位：仅验证交互')">🚪 退出</button>
-    <button onclick="alert('【STEP 3】此功能尚未接入（必须手动）')">⬆️ 保存到云端</button>
-    <button onclick="alert('【STEP 3】此功能尚未接入（必须手动）')">⬇️ 从云端拉取</button>
-    <button onclick="alert('【STEP 4】管理员功能尚未接入')">👤 管理员</button>
+    <button >🔐 登录</button>
+    <button >🚪 退出</button>
+    <button >⬆️ 保存到云端</button>
+    <button >⬇️ 从云端拉取</button>
+    <button >👤 管理员</button>
   </div>
   <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
 </div>
@@ -1985,70 +1985,135 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 
 <script>
-
-
-
-<script>
-
-
-
-<script>
-/* ======== Step3 旧文件式直连：全局函数 ======== */
-window.cloudSave = async function(){
-  console.log('[CLOUD] cloudSave()');
-  if(!window.__isLoggedIn){ alert('请先登录'); return; }
-  if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
-  const client = window.__supa;
-  if(!client){ alert('Supabase client 不存在'); return; }
-
-  const { data: u, error: ue } = await client.auth.getUser();
-  if(ue||!u?.user){ alert('无法获取用户'); return; }
-
-  const { error } = await client
-    .from('app_state_user')
-    .update({ data: window.orders })
-    .eq('id', u.user.id);
-
-  if(error){ alert('保存失败：'+error.message); return; }
-  alert('已保存到云端');
-}
-
-window.cloudLoad = async function(){
-  console.log('[CLOUD] cloudLoad()');
-  if(!window.__isLoggedIn){ alert('请先登录'); return; }
-  const client = window.__supa;
-  if(!client){ alert('Supabase client 不存在'); return; }
-
-  const { data: u, error: ue } = await client.auth.getUser();
-  if(ue||!u?.user){ alert('无法获取用户'); return; }
-
-  const { data, error } = await client
-    .from('app_state_user')
-    .select('data')
-    .eq('id', u.user.id)
-    .single();
-
-  if(error){ alert('拉取失败：'+error.message); return; }
-  if(!data){ alert('云端暂无数据'); return; }
-  if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
-
-  window.orders = data.data;
-  if(typeof render==='function') render();
-  alert('已从云端拉取');
-}
-
-// 如果原云端面板没有直连，这里注入一个直连按钮组（兜底）
+/* ======== Step 3 云端保存 / 拉取（正式登录整合版） ======== */
 (function(){
-  let panel = document.querySelector('.cloud-addon-card') || document.body;
-  if(document.getElementById('cloud-direct-actions')) return;
-  const box = document.createElement('div');
-  box.id = 'cloud-direct-actions';
-  box.style.cssText = 'position:fixed;right:16px;bottom:96px;z-index:10030;background:#fff;border:1px solid #ddd;border-radius:12px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.15)';
-  box.innerHTML = `
-    <div style="font-weight:700;margin-bottom:6px">云端（直连）</div>
-    <button onclick="cloudSave()" style="width:100%;margin-bottom:6px">⬆️ 保存到云端</button>
-    <button onclick="cloudLoad()" style="width:100%">⬇️ 从云端拉取</button>
-  `;
-  panel.appendChild(box);
+  function getClient(){
+    return window.__supa || null;
+  }
+
+  async function cloudSave(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { error } = await client
+      .from('app_state_user')
+      .update({ data: window.orders })
+      .eq('id', u.user.id);
+
+    if(error){ alert('保存失败：'+error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function cloudLoad(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .single();
+
+    if(error){ alert('拉取失败：'+error.message); return; }
+    if(!data){ alert('云端暂无数据'); return; }
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    window.orders = data.data;
+    if(typeof render==='function') render();
+    alert('已从云端拉取');
+  }
+
+  // bind by data-action if exists, else by text
+  document.querySelectorAll('button').forEach(btn=>{
+    const t=(btn.innerText||'');
+    if(t.includes('保存到云端')||t.includes('保存云端')||t.includes('保存')) btn.addEventListener('click', cloudSave);
+    if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
+  });
 })();
+</script>
+
+
+<script>
+
+
+
+<script>
+/* ===== CSP-safe 云端模块（无 inline handler） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+
+  function ensureClient(){
+    return window.__supa || null;
+  }
+
+  async function cloudSave(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+    const client = ensureClient();
+    if(!client){ alert('Supabase 未初始化'); return; }
+
+    const { data:u, error:ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { error } = await client
+      .from('app_state_user')
+      .update({ data: window.orders })
+      .eq('id', u.user.id);
+
+    if(error){ alert('保存失败：'+error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function cloudLoad(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    const client = ensureClient();
+    if(!client){ alert('Supabase 未初始化'); return; }
+
+    const { data:u, error:ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .single();
+
+    if(error){ alert('拉取失败：'+error.message); return; }
+    if(!data){ alert('云端暂无数据'); return; }
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    window.orders = data.data;
+    if(typeof render==='function') render();
+    alert('已从云端拉取');
+  }
+
+  // CSP-safe floating buttons
+  if(!document.getElementById('cloud-csp-fab')){
+    const box=document.createElement('div');
+    box.id='cloud-csp-fab';
+    box.style.cssText='position:fixed;right:16px;bottom:160px;z-index:99999;display:flex;flex-direction:column;gap:10px';
+
+    const btnSave=document.createElement('button');
+    btnSave.textContent='⬆️ 云端保存';
+    btnSave.style.cssText='padding:12px 14px;border-radius:14px;border:none;background:#4f46e5;color:#fff;font-weight:700';
+    btnSave.addEventListener('click', cloudSave);
+
+    const btnLoad=document.createElement('button');
+    btnLoad.textContent='⬇️ 云端拉取';
+    btnLoad.style.cssText='padding:12px 14px;border-radius:14px;border:none;background:#059669;color:#fff;font-weight:700';
+    btnLoad.addEventListener('click', cloudLoad);
+
+    box.appendChild(btnSave);
+    box.appendChild(btnLoad);
+    document.body.appendChild(box);
+  }
+});
 </script>
