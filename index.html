@@ -1727,9 +1727,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
             <button class="action-btn btn-export" id="export-btn">
                 <i class="fas fa-file-export"></i> 导出
             </button>
-            <button class="action-btn btn-import" id="import-btn">
-                <i class="fas fa-file-import"></i> 导入
-            </button>
+            <button type="button" class="action-btn btn-import" id="import-btn">
+    <i class="fas fa-file-import"></i> 导入
+</button>
 <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls">
 <button class="action-btn btn-calculator" id="calculator-btn">
                 <i class="fas fa-calculator"></i> 计算器
@@ -4827,7 +4827,7 @@ function initAuthLock(){
     initSb().then((client)=>{
       if(!client) return;
       client.auth.onAuthStateChange((event, session)=>{ try{ if(session) __saveManualSession(session); }catch(e){}; refreshAuth(session); });
-      //refreshAuth(null);← 已禁用：避免导入被自动拉取覆盖
+      refreshAuth(null);
     });
   }catch(e){}
 }
