@@ -1944,66 +1944,7 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 
 <script>
-/* ======== Step 3 云端保存 / 拉取（手动触发，整包覆盖） ======== */
-(function(){
-  let supaClient = null;
-  window.__ensureSupabase = function(){
-    if(supaClient) return supaClient;
-    if(window.supabase && window.__sbUrl && window.__sbKey){
-      supaClient = supabase.createClient(window.__sbUrl, window.__sbKey);
-      return supaClient;
-    }
-    return null;
-  };
 
-  async function cloudSave(){
-    if(!window.__isLoggedIn){ alert('请先登录'); return; }
-    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
-    const client = window.__ensureSupabase();
-    if(!client){ alert('Supabase 未初始化'); return; }
-
-    const { data: userData, error: userErr } = await client.auth.getUser();
-    if(userErr || !userData?.user){ alert('无法获取用户'); return; }
-
-    const { error } = await client
-      .from('app_state_user')
-      .update({ data: window.orders })
-      .eq('id', userData.user.id);
-
-    if(error){ alert('保存失败：'+error.message); return; }
-    alert('已保存到云端');
-  }
-
-  async function cloudLoad(){
-    if(!window.__isLoggedIn){ alert('请先登录'); return; }
-    const client = window.__ensureSupabase();
-    if(!client){ alert('Supabase 未初始化'); return; }
-
-    const { data: userData, error: userErr } = await client.auth.getUser();
-    if(userErr || !userData?.user){ alert('无法获取用户'); return; }
-
-    const { data, error } = await client
-      .from('app_state_user')
-      .select('data')
-      .eq('id', userData.user.id)
-      .single();
-
-    if(error){ alert('拉取失败：'+error.message); return; }
-    if(!data){ alert('云端暂无数据'); return; }
-    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
-
-    window.orders = data.data;
-    if(typeof render === 'function') render();
-    alert('已从云端拉取');
-  }
-
-  document.querySelectorAll('button').forEach(btn=>{
-    const t=(btn.innerText||'');
-    if(t.includes('保存')) btn.addEventListener('click',cloudSave);
-    if(t.includes('拉取')) btn.addEventListener('click',cloudLoad);
-  });
-})();
-</script>
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2038,6 +1979,64 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
     const t=b.innerText||'';
     if(t.includes('登录')) b.onclick=openLogin;
     if(t.includes('退出')) b.onclick=logout;
+  });
+})();
+</script>
+
+
+<script>
+/* ======== Step 3 云端保存 / 拉取（正式登录整合版） ======== */
+(function(){
+  function getClient(){
+    return window.__supa || null;
+  }
+
+  async function cloudSave(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { error } = await client
+      .from('app_state_user')
+      .update({ data: window.orders })
+      .eq('id', u.user.id);
+
+    if(error){ alert('保存失败：'+error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function cloudLoad(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .single();
+
+    if(error){ alert('拉取失败：'+error.message); return; }
+    if(!data){ alert('云端暂无数据'); return; }
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    window.orders = data.data;
+    if(typeof render==='function') render();
+    alert('已从云端拉取');
+  }
+
+  // bind by data-action if exists, else by text
+  document.querySelectorAll('button').forEach(btn=>{
+    const t=(btn.innerText||'');
+    if(t.includes('保存到云端')||t.includes('保存云端')||t.includes('保存')) btn.addEventListener('click', cloudSave);
+    if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
   });
 })();
 </script>
