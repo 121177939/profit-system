@@ -1727,7 +1727,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
             <button class="action-btn btn-export" id="export-btn">
                 <i class="fas fa-file-export"></i> 导出
             </button>
-            <button type="button" class="action-btn btn-import" id="import-btn">
+            <button class="action-btn btn-import" id="import-btn">
                 <i class="fas fa-file-import"></i> 导入
             </button>
 <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls">
@@ -4437,7 +4437,7 @@ async function refreshAuth(sessionFromEvent){
 
   __loginEnabled = true;
   amStatus(__currentUser.email || __currentUser.id);
-  amMsg("登录成功：已解锁功能（云端数据请手动点『拉取』）", true);
+  amMsg("登录成功：已解锁功能，并会自动拉取云端数据", true);
   setFeatureLock(false);
 
   // 管理员面板：优先看 profile.role，其次保留邮箱硬编码兜底
@@ -4448,6 +4448,9 @@ async function refreshAuth(sessionFromEvent){
   }else{
     hideAdminUI();
   }
+
+  // 登录后自动拉取云端（不改变UI，只刷新数据）
+  try{ await cloudLoad(); }catch(e){}
 }
 
 
@@ -4778,8 +4781,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：admin-create-user
       const res = await _callEdge("admin-create-user", {
         admin_email: (__currentUser?.email||""),
-        email: email,
-        target_email: email,
+        email: email, target_email: email,
         target_password: pw
       });
       alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
@@ -4803,8 +4805,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：reset-password
       const res = await _callEdge("reset-password", {
         admin_email: (__currentUser?.email||""),
-        email: email,
-        target_email: email,
+        email: email, target_email: email,
         new_password: pw
       });
       alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
@@ -6529,3 +6530,14 @@ async function __callEdgeGlobal(fnName, bodyObj){
 
 </body>
 </html>
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  const btn = document.getElementById('import-btn');
+  if(btn){
+    btn.onclick = ()=>{
+      const input = document.getElementById('import-file');
+      if(input) input.click();
+    };
+  }
+});
+</script>
