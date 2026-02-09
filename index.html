@@ -2576,7 +2576,9 @@ async function __callEdgeGlobal(fnName, bodyObj){
         }
         
         // 从Excel导入
-        function importFromExcel(file) {
+        function importFromExcel(file){
+  // import is local-only: never triggers cloud pull
+
             if (!file) return;
             window.__IMPORT_LOCK__ = true;
             
@@ -4897,6 +4899,7 @@ async function cloudLoad(){
     console.warn('[cloudLoad] blocked (auto)');
     return;
   }
+  // allow this call
 
   if(window.__IMPORT_LOCK__){ return; }
   if(window.__DIRTY_LOCAL__){ return; }
