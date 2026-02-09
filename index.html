@@ -2043,6 +2043,72 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+
+<script>
+/* ======== 官方地基 API：云端快照（修正版：对齐 orders / localStorage / upsert） ======== */
+(function(){
+  function getClient(){ return window.__supa || null; }
+  const LS_KEY = 'orderProfitData';
+
+  function getOrders(){
+    try{ return (typeof orders !== 'undefined') ? orders : (JSON.parse(localStorage.getItem(LS_KEY))||[]); }
+    catch(e){ return []; }
+  }
+  function setOrders(next){
+    try{
+      if(typeof orders !== 'undefined'){ orders = Array.isArray(next) ? next : []; }
+      localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(next)?next:[]));
+    }catch(e){}
+    if(typeof render === 'function') render();
+  }
+
+  window.saveSnapshotToCloud = async function saveSnapshotToCloud(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+
+    const client = getClient();
+    if(!client){ alert('Supabase 未初始化'); return; }
+
+    const { data:u, error:ue } = await client.auth.getUser();
+    if(ue || !u?.user){ alert('无法获取用户'); return; }
+
+    const payload = { id: u.user.id, data: getOrders() };
+
+    // 用 upsert：不存在就创建，存在就覆盖（避免 update 0 行“成功但没变化”）
+    const { error } = await client
+      .from('app_state_user')
+      .upsert(payload, { onConflict: 'id' });
+
+    if(error){ alert('保存失败：' + error.message); return; }
+    alert('已保存到云端');
+  };
+
+  window.loadSnapshotFromCloud = async function loadSnapshotFromCloud(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+
+    const client = getClient();
+    if(!client){ alert('Supabase 未初始化'); return; }
+
+    const { data:u, error:ue } = await client.auth.getUser();
+    if(ue || !u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .maybeSingle();
+
+    if(error){ alert('拉取失败：' + error.message); return; }
+    if(!data || data.data == null){ alert('云端暂无数据'); return; }
+
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    setOrders(data.data);
+    alert('已从云端拉取');
+  };
+})();
+</script>
+
 </body>
 </html>
 
