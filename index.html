@@ -8,8 +8,6 @@
 <script>
 window.__IMPORT_LOCK__ = false;
 window.__DIRTY_LOCAL__ = false;
-window.__MANUAL_CLOUD_PULL__ = false; // only manual pull allowed
-
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
   try{
@@ -1729,7 +1727,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
             <button class="action-btn btn-export" id="export-btn">
                 <i class="fas fa-file-export"></i> 导出
             </button>
-            <button class="action-btn btn-import" id="import-btn">
+            <button type="button" class="action-btn btn-import" id="import-btn">
                 <i class="fas fa-file-import"></i> 导入
             </button>
 <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls">
@@ -2576,9 +2574,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
         }
         
         // 从Excel导入
-        function importFromExcel(file){
-  // import is local-only: never triggers cloud pull
-
+        function importFromExcel(file) {
             if (!file) return;
             window.__IMPORT_LOCK__ = true;
             
@@ -4441,7 +4437,7 @@ async function refreshAuth(sessionFromEvent){
 
   __loginEnabled = true;
   amStatus(__currentUser.email || __currentUser.id);
-  amMsg("登录成功：已解锁功能，并会自动拉取云端数据", true);
+  amMsg("登录成功：已解锁功能（云端数据请手动点『拉取』）", true);
   setFeatureLock(false);
 
   // 管理员面板：优先看 profile.role，其次保留邮箱硬编码兜底
@@ -4452,11 +4448,6 @@ async function refreshAuth(sessionFromEvent){
   }else{
     hideAdminUI();
   }
-
-  // 登录后自动拉取云端（不改变UI，只刷新数据）
-  try{ await cloudLoad(); 
-  window.__MANUAL_CLOUD_PULL__ = false;
-}catch(e){}
 }
 
 
@@ -4788,6 +4779,7 @@ function bindAccountUI(){
       const res = await _callEdge("admin-create-user", {
         admin_email: (__currentUser?.email||""),
         email: email,
+        target_email: email,
         target_password: pw
       });
       alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
@@ -4812,6 +4804,7 @@ function bindAccountUI(){
       const res = await _callEdge("reset-password", {
         admin_email: (__currentUser?.email||""),
         email: email,
+        target_email: email,
         new_password: pw
       });
       alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
@@ -4885,8 +4878,6 @@ async function cloudSave(){
 
     _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
     window.__DIRTY_LOCAL__ = false;
-window.__MANUAL_CLOUD_PULL__ = false; // only manual pull allowed
-
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
@@ -4895,12 +4886,6 @@ window.__MANUAL_CLOUD_PULL__ = false; // only manual pull allowed
 }
 
 async function cloudLoad(){
-  if(!window.__MANUAL_CLOUD_PULL__){
-    console.warn('[cloudLoad] blocked (auto)');
-    return;
-  }
-  // allow this call
-
   if(window.__IMPORT_LOCK__){ return; }
   if(window.__DIRTY_LOCAL__){ return; }
   try{
