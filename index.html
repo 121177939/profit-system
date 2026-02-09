@@ -8,6 +8,8 @@
 <script>
 window.__IMPORT_LOCK__ = false;
 window.__DIRTY_LOCAL__ = false;
+window.__MANUAL_CLOUD_PULL__ = false; // only manual pull allowed
+
 /* 强制统一域名：避免 www / 非www 导致登录态(localStorage)不共享，刷新后显示未登录 */
 (function(){
   try{
@@ -1727,7 +1729,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
             <button class="action-btn btn-export" id="export-btn">
                 <i class="fas fa-file-export"></i> 导出
             </button>
-            <button type="button" class="action-btn btn-import" id="import-btn">
+            <button class="action-btn btn-import" id="import-btn">
                 <i class="fas fa-file-import"></i> 导入
             </button>
 <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls">
@@ -4450,7 +4452,9 @@ async function refreshAuth(sessionFromEvent){
   }
 
   // 登录后自动拉取云端（不改变UI，只刷新数据）
-  try{ await cloudLoad(); }catch(e){}
+  try{ await cloudLoad(); 
+  window.__MANUAL_CLOUD_PULL__ = false;
+}catch(e){}
 }
 
 
@@ -4879,6 +4883,8 @@ async function cloudSave(){
 
     _setCloudStatus("✅ 云端已保存（账号：" + (sess.user.email||"") + "）", true);
     window.__DIRTY_LOCAL__ = false;
+window.__MANUAL_CLOUD_PULL__ = false; // only manual pull allowed
+
     try{ createLocalBackup("cloudSave"); }catch(e){}
     if(typeof showToast==="function") showToast("云端已保存（已备份）");
   }catch(e){
@@ -4887,6 +4893,11 @@ async function cloudSave(){
 }
 
 async function cloudLoad(){
+  if(!window.__MANUAL_CLOUD_PULL__){
+    console.warn('[cloudLoad] blocked (auto)');
+    return;
+  }
+
   if(window.__IMPORT_LOCK__){ return; }
   if(window.__DIRTY_LOCAL__){ return; }
   try{
