@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -219,11 +219,33 @@ async function __callEdgeGlobal(fnName, bodyObj){
 
 
 // v7.9: Edge caller using JSON body access_token (mobile WebView safe, same as _callEdge)
-async function __callEdgeBodyToken(fnName, body){
-  const token = await getAccessToken();
-  if(!token) throw new Error("会话已失效：未获取到 access_token（请退出后重新登录）");
-  const url = SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fnName + "?t=" + Date.now();
-  const payload = Object.assign({ access_token: token }, (body||{}));
+async function __callEdgeBodyToken(fnName, bodyObj){
+  const base = "https://yqsjkdndasbdfmjwahwk.supabase.co/functions/v1/";
+  const url = base + fnName + "?t=" + Date.now();
+
+  // 获取 session.access_token
+  let session = null;
+  try{
+    const { data } = await supabase.auth.getSession();
+    session = data?.session || null;
+  }catch(e){}
+
+  if(!session){
+    try{
+      const { data } = await supabase.auth.refreshSession();
+      session = data?.session || null;
+    }catch(e){}
+  }
+
+  if(!session || !session.access_token){
+    throw new Error("会话失效：No Authorization Bearer token");
+  }
+
+  // 合并 body（确保 email 不会丢失）
+  const payload = Object.assign({}, (bodyObj||{}), {
+    access_token: session.access_token
+  });
+
   const resp = await fetch(url, {
     method: "POST",
     mode: "cors",
@@ -234,12 +256,15 @@ async function __callEdgeBodyToken(fnName, body){
     },
     body: JSON.stringify(payload)
   });
+
+  const txt = await resp.text();
   let json = null;
-  try{ json = await resp.json(); }catch(e){}
+  try{ json = JSON.parse(txt); }catch(e){}
+
   if(!resp.ok){
-    const msg = (json && (json.error||json.message)) ? (json.error||json.message) : (resp.status + " " + resp.statusText);
-    throw new Error(msg);
+    throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : txt);
   }
+
   if(json && json.error) throw new Error(json.error);
   return json;
 }
@@ -2411,9 +2436,7 @@ async function __callEdgeGlobal(fnName, bodyObj){
         }
 
         // 从表格中更新订单数据
-        function updateOrdersFromTable(){
-  if(!window.__ALLOW_DOM_TO_ORDERS__){ return; }
-
+        function updateOrdersFromTable() {
             const rows = tableBody.querySelectorAll('tr');
             
             // 遍历所有行
@@ -2561,30 +2584,19 @@ async function __callEdgeGlobal(fnName, bodyObj){
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    // ✅ 自动识别表头行（兼容第1行是标题、表头在第2行的Excel）
-                    const _rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: true });
-                    let _headerRow = 0;
-                    for(let r=0;r<Math.min(_rows.length, 10);r++){
-                        const row = _rows[r] || [];
-                        const hasDate = row.some(c=>String(c||'').trim()==='日期');
-                        if(hasDate){ _headerRow = r; break; }
-                    }
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { range: _headerRow, defval: '' });
-// 转换数据格式
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    // 转换数据格式
                     const importedOrders = jsonData
-                        .filter(row => {
-                        const d = row['日期'] ?? row['日期 '] ?? row[' 日期'] ?? '';
-                        return d && String(d).trim() !== '汇总';
-                    })
+                        .filter(row => row['日期'] && row['日期'] !== '汇总')
                         .map(row => ({
-                            date: (row['日期'] ?? row['日期 '] ?? row[' 日期']) instanceof Date ? 
-                                  (row['日期'] ?? row['日期 '] ?? row[' 日期']).toISOString().split('T')[0] : 
-                                  String((row['日期'] ?? row['日期 '] ?? row[' 日期'] ?? '') || ''),
+                            date: row['日期'] instanceof Date ? 
+                                  row['日期'].toISOString().split('T')[0] : 
+                                  String(row['日期'] || ''),
                             customer: String(row['下单人'] || ''),
                             product: String(row['产品'] || ''),
                             orderAmount: String(row['下单金额'] || '0'),
-                            refund: String((row['退款'] ?? row['返款'] ?? row['返 款'] ?? row['返款 '] ?? '0')),
-                            // 兼容不同表头写法：退款/返款
+                            refund: String(row['返款'] || '0'),
                             shipping: String(row['运费'] || '0'),
                             sellAmount: String(row['售出金额'] || '0'),
                             supplier: String(row['货商'] || ''), // 新增：读取货商列
@@ -4235,8 +4247,6 @@ const ADMIN_EMAIL = "912872449@qq.com";
 let sb = null;
 
 let __currentUser = null;
-window.__ALLOW_DOM_TO_ORDERS__ = false; // 仅保存时允许 DOM→orders
-
 let __loginEnabled = false;
 
 // 账号开关（未登录禁用保存/新增/导入/导出）
@@ -4771,7 +4781,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：admin-create-user
       const res = await _callEdge("admin-create-user", {
         admin_email: (__currentUser?.email||""),
-        target_email: email,
+        email: email,
         target_password: pw
       });
       alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
@@ -4795,7 +4805,7 @@ function bindAccountUI(){
       // 约定 Edge Function 名：reset-password
       const res = await _callEdge("reset-password", {
         admin_email: (__currentUser?.email||""),
-        target_email: email,
+        email: email,
         new_password: pw
       });
       alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
@@ -4817,7 +4827,7 @@ function initAuthLock(){
     initSb().then((client)=>{
       if(!client) return;
       client.auth.onAuthStateChange((event, session)=>{ try{ if(session) __saveManualSession(session); }catch(e){}; refreshAuth(session); });
-      refreshAuth(null);
+      //refreshAuth(null);← 已禁用：避免导入被自动拉取覆盖
     });
   }catch(e){}
 }
