@@ -1935,6 +1935,94 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 })();
 </script>
 
+
+<script>
+/* ======== Step3 UI收口：主界面按钮=旧版位置；☁️面板移除保存/拉取 ======== */
+document.addEventListener('DOMContentLoaded', function () {
+  // 1) ☁️面板：移除“保存到云端/从云端拉取”
+  try{
+    document.querySelectorAll('button,div').forEach(function(el){
+      var t=(el.innerText||'').trim();
+      if(t==='保存到云端' || t==='从云端拉取'){ el.remove(); }
+    });
+  }catch(e){}
+
+  // 2) 取 supabase client
+  function client(){ return window.__supa || null; }
+
+  async function cloudSave(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+    var c=client(); if(!c){ alert('云端未初始化'); return; }
+    var r1=await c.auth.getUser(); if(r1.error||!r1.data||!r1.data.user){ alert('无法获取用户'); return; }
+    var uid=r1.data.user.id;
+    var r2=await c.from('app_state_user').update({ data: window.orders }).eq('id', uid);
+    if(r2.error){ alert('保存失败：'+r2.error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function cloudLoad(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    var c=client(); if(!c){ alert('云端未初始化'); return; }
+    var r1=await c.auth.getUser(); if(r1.error||!r1.data||!r1.data.user){ alert('无法获取用户'); return; }
+    var uid=r1.data.user.id;
+    var r2=await c.from('app_state_user').select('data').eq('id', uid).single();
+    if(r2.error){ alert('拉取失败：'+r2.error.message); return; }
+    if(!r2.data){ alert('云端暂无数据'); return; }
+    if(!confirm('云端数据将覆盖本地，是否确认？')) return;
+    window.orders = r2.data.data;
+    if(typeof render==='function') render();
+    alert('已从云端拉取');
+  }
+
+  // 3) 生成旧版样式的“保存/拉取”按钮（绿色/蓝色，圆角胶囊）
+  function makeBtn(text,bg){
+    var b=document.createElement('button');
+    b.type='button';
+    b.innerHTML=text;
+    b.style.cssText='border:none;border-radius:999px;padding:10px 18px;font-weight:800;color:#fff;background:'+bg+';display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap';
+    return b;
+  }
+  var btnSave=makeBtn('☁️ 保存', '#22c55e');
+  var btnLoad=makeBtn('⬇️ 拉取', '#3b82f6');
+  btnSave.addEventListener('click', cloudSave);
+  btnLoad.addEventListener('click', cloudLoad);
+
+  // 4) 放到“总利润卡片”右侧（找包含“总利润/￥”的块）
+  var card=null;
+  var divs=document.querySelectorAll('div');
+  for(var i=0;i<divs.length;i++){
+    var t=(divs[i].innerText||'');
+    if(t.indexOf('总利润')!==-1 && t.indexOf('￥')!==-1){ card=divs[i]; break; }
+  }
+
+  function placeIntoCard(c){
+    var row=c.querySelector('.top-cloud-actions');
+    if(!row){
+      row=document.createElement('div');
+      row.className='top-cloud-actions';
+      row.style.cssText='position:absolute;right:20px;top:24px;display:flex;gap:14px;z-index:20';
+      if(getComputedStyle(c).position==='static') c.style.position='relative';
+      c.appendChild(row);
+    }
+    // 避免重复添加
+    if(!row.contains(btnSave)) row.appendChild(btnSave);
+    if(!row.contains(btnLoad)) row.appendChild(btnLoad);
+  }
+
+  if(card){
+    placeIntoCard(card);
+  }else{
+    // 兜底：固定在右上
+    var box=document.createElement('div');
+    box.style.cssText='position:fixed;right:16px;top:120px;z-index:99999;display:flex;gap:10px';
+    box.appendChild(btnSave);
+    box.appendChild(btnLoad);
+    document.body.appendChild(box);
+  }
+});
+</script>
+
 </body>
 </html>
 
@@ -1985,70 +2073,58 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 
 <script>
-
-
-
-<script>
-
-
-
-<script>
-/* ======== Step3 旧文件式直连：全局函数 ======== */
-window.cloudSave = async function(){
-  console.log('[CLOUD] cloudSave()');
-  if(!window.__isLoggedIn){ alert('请先登录'); return; }
-  if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
-  const client = window.__supa;
-  if(!client){ alert('Supabase client 不存在'); return; }
-
-  const { data: u, error: ue } = await client.auth.getUser();
-  if(ue||!u?.user){ alert('无法获取用户'); return; }
-
-  const { error } = await client
-    .from('app_state_user')
-    .update({ data: window.orders })
-    .eq('id', u.user.id);
-
-  if(error){ alert('保存失败：'+error.message); return; }
-  alert('已保存到云端');
-}
-
-window.cloudLoad = async function(){
-  console.log('[CLOUD] cloudLoad()');
-  if(!window.__isLoggedIn){ alert('请先登录'); return; }
-  const client = window.__supa;
-  if(!client){ alert('Supabase client 不存在'); return; }
-
-  const { data: u, error: ue } = await client.auth.getUser();
-  if(ue||!u?.user){ alert('无法获取用户'); return; }
-
-  const { data, error } = await client
-    .from('app_state_user')
-    .select('data')
-    .eq('id', u.user.id)
-    .single();
-
-  if(error){ alert('拉取失败：'+error.message); return; }
-  if(!data){ alert('云端暂无数据'); return; }
-  if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
-
-  window.orders = data.data;
-  if(typeof render==='function') render();
-  alert('已从云端拉取');
-}
-
-// 如果原云端面板没有直连，这里注入一个直连按钮组（兜底）
+/* ======== Step 3 云端保存 / 拉取（正式登录整合版） ======== */
 (function(){
-  let panel = document.querySelector('.cloud-addon-card') || document.body;
-  if(document.getElementById('cloud-direct-actions')) return;
-  const box = document.createElement('div');
-  box.id = 'cloud-direct-actions';
-  box.style.cssText = 'position:fixed;right:16px;bottom:96px;z-index:10030;background:#fff;border:1px solid #ddd;border-radius:12px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.15)';
-  box.innerHTML = `
-    <div style="font-weight:700;margin-bottom:6px">云端（直连）</div>
-    <button onclick="cloudSave()" style="width:100%;margin-bottom:6px">⬆️ 保存到云端</button>
-    <button onclick="cloudLoad()" style="width:100%">⬇️ 从云端拉取</button>
-  `;
-  panel.appendChild(box);
+  function getClient(){
+    return window.__supa || null;
+  }
+
+  async function cloudSave(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { error } = await client
+      .from('app_state_user')
+      .update({ data: window.orders })
+      .eq('id', u.user.id);
+
+    if(error){ alert('保存失败：'+error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function cloudLoad(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .single();
+
+    if(error){ alert('拉取失败：'+error.message); return; }
+    if(!data){ alert('云端暂无数据'); return; }
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    window.orders = data.data;
+    if(typeof render==='function') render();
+    alert('已从云端拉取');
+  }
+
+  // bind by data-action if exists, else by text
+  document.querySelectorAll('button').forEach(btn=>{
+    const t=(btn.innerText||'');
+    if(t.includes('保存到云端')||t.includes('保存云端')||t.includes('保存')) btn.addEventListener('click', cloudSave);
+    if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
+  });
 })();
 </script>
