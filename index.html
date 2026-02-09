@@ -2006,8 +2006,8 @@ document.addEventListener('DOMContentLoaded', function(){
     return b;
   }
 
-  const btnSave = makeBtn('☁️ 保存', '#22c55e');
-  const btnLoad = makeBtn('⬇️ 拉取', '#3b82f6');
+  const btnSave = makeBtn('', '#22c55e');
+  const btnLoad = makeBtn('', '#3b82f6');
   btnSave.addEventListener('click', function(){ window.saveSnapshotToCloud && window.saveSnapshotToCloud(); });
   btnLoad.addEventListener('click', function(){ window.loadSnapshotFromCloud && window.loadSnapshotFromCloud(); });
 
@@ -2109,6 +2109,53 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 </script>
 
+
+<script>
+/* ===== 登录态持久化恢复（仅恢复登录状态，不拉数据） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  if(!window.__supa) return;
+  window.__supa.auth.getSession().then(function(res){
+    if(res && res.data && res.data.session){
+      window.__isLoggedIn = true;
+      console.log('[AUTH] session restored');
+    }
+  });
+});
+</script>
+
+
+<script>
+/* ===== ☁️ 面板：云端按钮回归（仅调用地基 API） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  // 找到 ☁️ 面板容器（兜底）
+  let panel = document.querySelector('.cloud-panel') || document.querySelector('.addon-panel') || null;
+  if(!panel) return;
+
+  // 避免重复插入
+  if(panel.querySelector('.cloud-snapshot-actions')) return;
+
+  const box = document.createElement('div');
+  box.className = 'cloud-snapshot-actions';
+  box.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:8px';
+
+  const btnSave = document.createElement('button');
+  btnSave.textContent = '☁️ 保存到云端';
+  btnSave.onclick = function(){
+    if(window.saveSnapshotToCloud) window.saveSnapshotToCloud();
+  };
+
+  const btnLoad = document.createElement('button');
+  btnLoad.textContent = '⬇️ 从云端拉取';
+  btnLoad.onclick = function(){
+    if(window.loadSnapshotFromCloud) window.loadSnapshotFromCloud();
+  };
+
+  box.appendChild(btnSave);
+  box.appendChild(btnLoad);
+  panel.appendChild(box);
+});
+</script>
+
 </body>
 </html>
 
@@ -2127,7 +2174,7 @@ document.addEventListener('DOMContentLoaded', function(){
 (function(){
   const SUPABASE_URL = 'https://yqsjkdndasbdfmjwahwk.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
-  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   window.__supa = client;
 
   // 简单登录框
