@@ -2052,3 +2052,19 @@ window.cloudLoad = async function(){
   panel.appendChild(box);
 })();
 </script>
+
+
+<script>
+/* ======== 强制显示：云端直连悬浮按钮 ======== */
+(function(){
+  if(document.getElementById('cloud-force-fab')) return;
+  const box=document.createElement('div');
+  box.id='cloud-force-fab';
+  box.style.cssText='position:fixed;right:16px;bottom:160px;z-index:99999;display:flex;flex-direction:column;gap:10px';
+  box.innerHTML=`
+    <button onclick="cloudSave()" style="padding:12px 14px;border-radius:14px;border:none;background:#4f46e5;color:#fff;font-weight:700">⬆️ 云端保存</button>
+    <button onclick="cloudLoad()" style="padding:12px 14px;border-radius:14px;border:none;background:#059669;color:#fff;font-weight:700">⬇️ 云端拉取</button>
+  `;
+  document.body.appendChild(box);
+})();
+</script>
