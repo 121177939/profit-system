@@ -2584,11 +2584,17 @@ async function __callEdgeGlobal(fnName, bodyObj){
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    // 自动识别表头行（防止导入为空）
+const _rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: true });
+let _headerRow = 0;
+for(let r=0;r<Math.min(_rows.length,10);r++){
+  if((_rows[r]||[]).some(c=>String(c||'').trim()==='日期')){ _headerRow=r; break; }
+}
+const jsonData = XLSX.utils.sheet_to_json(firstSheet, { range: _headerRow, defval: '' });
                     
                     // 转换数据格式
                     const importedOrders = jsonData
-                        .filter(row => row['日期'] && row['日期'] !== '汇总')
+                        .filter(row => (row['日期'] ?? row['日期 '] ?? row[' 日期'] ?? '') && String(row['日期'] ?? '').trim() !== '汇总')
                         .map(row => ({
                             date: row['日期'] instanceof Date ? 
                                   row['日期'].toISOString().split('T')[0] : 
@@ -6530,14 +6536,3 @@ async function __callEdgeGlobal(fnName, bodyObj){
 
 </body>
 </html>
-<script>
-document.addEventListener('DOMContentLoaded', ()=>{
-  const btn = document.getElementById('import-btn');
-  if(btn){
-    btn.onclick = ()=>{
-      const input = document.getElementById('import-file');
-      if(input) input.click();
-    };
-  }
-});
-</script>
