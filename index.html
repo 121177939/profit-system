@@ -663,126 +663,73 @@
 
 </style>
 
-<!-- ===== APP-like motion patch (non-invasive, no network) ===== -->
-<style id="app-motion">
-:root{
-  --ease-out:cubic-bezier(.2,.8,.2,1);
-  --ease-spring:cubic-bezier(.2,1.2,.2,1);
-}
-
-/* Respect reduced-motion */
+<style id="app-motion-css">
+/* ===== App-like motion (safe, no logic override) ===== */
 @media (prefers-reduced-motion: reduce){
-  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+  *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior:auto !important; }
 }
 
-/* App-like smoothness */
-html{scroll-behavior:smooth;}
-body{
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+body{ opacity:0; transform: translateY(6px); transition: opacity .22s ease, transform .22s ease; }
+body.app-mounted{ opacity:1; transform: translateY(0); }
 
-/* Page enter */
-body:not(.app-mounted) .container{opacity:0; transform: translateY(10px) scale(.995);}
-body.app-mounted .container{
-  animation: appFadeUp 420ms var(--ease-out) both;
-}
-@keyframes appFadeUp{
-  from{opacity:0; transform: translateY(10px) scale(.995);}
-  to{opacity:1; transform: translateY(0) scale(1);}
-}
-
-/* Card micro-depth + hover */
-.header, .table-container, .calculator-container, .cloud-addon-card, .login-box{
-  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
-  will-change: transform;
-}
-.header:active, .table-container:active{transform: translateY(1px);}
-
-/* Buttons: smoother + press */
-.action-btn, .cloud-addon-card button, .login-actions button, .delete-btn, .calculator-btn{
-  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), filter 160ms var(--ease-out), background-color 160ms var(--ease-out);
-  will-change: transform;
-}
-.action-btn:active, .cloud-addon-card button:active, .login-actions button:active, .delete-btn:active, .calculator-btn:active{
-  transform: translateY(1px) scale(.99);
-  filter: brightness(.98);
-}
-
-/* Inputs focus glow slightly softer */
-input:focus, select:focus{
-  box-shadow: 0 0 0 3px rgba(52,152,219,.12);
-}
-
-/* Table row enter animation */
-#table-body tr.row-enter{
-  opacity:0;
-  transform: translateY(6px);
-  animation: rowIn 320ms var(--ease-out) forwards;
+.row-enter{
+  animation: rowIn .26s cubic-bezier(.2,.9,.2,1) both;
   animation-delay: var(--d, 0ms);
 }
 @keyframes rowIn{
-  to{opacity:1; transform: translateY(0);}
+  from{ opacity:0; transform: translateY(6px); }
+  to{ opacity:1; transform: translateY(0); }
 }
 
-/* Toast: slide up + fade */
-.toast{
-  transform: translateX(-50%) translateY(10px);
-  opacity: 0;
-}
-.toast.show{
-  opacity:1;
-  transform: translateX(-50%) translateY(0);
-  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
-}
-
-/* Cloud card open/close */
-.cloud-addon-card{
-  transform-origin: right bottom;
-  opacity:0;
-  transform: translateY(10px) scale(.96);
-  display:none;
-}
-.cloud-addon-card.is-open{
-  display:block;
-  animation: popIn 220ms var(--ease-spring) both;
-}
-.cloud-addon-card.is-closing{
-  display:block;
-  animation: popOut 180ms var(--ease-out) both;
+/* Login pop */
+#loginBox.motion-in{
+  animation: popIn .22s cubic-bezier(.2,.95,.2,1) both;
 }
 @keyframes popIn{
-  from{opacity:0; transform: translateY(10px) scale(.96);}
-  to{opacity:1; transform: translateY(0) scale(1);}
-}
-@keyframes popOut{
-  from{opacity:1; transform: translateY(0) scale(1);}
-  to{opacity:0; transform: translateY(8px) scale(.97);}
+  from{ opacity:0; transform: translate(-50%,-48%) scale(.98); }
+  to{ opacity:1; transform: translate(-50%,-50%) scale(1); }
 }
 
-/* Login box enter */
-#loginBox.motion-in{
-  animation: modalIn 240ms var(--ease-spring) both;
+/* Cloud panel motion (works with display toggle or class toggle) */
+#addon-card.motion-open{
+  animation: panelIn .18s cubic-bezier(.2,.95,.2,1) both;
+  transform-origin: top right;
 }
-@keyframes modalIn{
-  from{opacity:0; transform: translate(-50%,-50%) scale(.96);}
-  to{opacity:1; transform: translate(-50%,-50%) scale(1);}
+#addon-card.motion-closing{
+  animation: panelOut .16s ease both;
+  transform-origin: top right;
+}
+@keyframes panelIn{
+  from{ opacity:0; transform: translateY(-6px) scale(.98); }
+  to{ opacity:1; transform: translateY(0) scale(1); }
+}
+@keyframes panelOut{
+  from{ opacity:1; transform: translateY(0) scale(1); }
+  to{ opacity:0; transform: translateY(-6px) scale(.98); }
+}
+
+/* Tap feel */
+button, .action-btn, .delete-btn, .calculator-btn{
+  transition: transform .12s ease, filter .12s ease;
+}
+button:active, .action-btn:active, .delete-btn:active, .calculator-btn:active{
+  transform: translateY(1px) scale(.98);
+  filter: brightness(.98);
 }
 
 /* Ripple */
-.ripple-wrap{position:relative; overflow:hidden;}
+.ripple-wrap{ position:relative; overflow:hidden; }
 .ripple{
   position:absolute;
   border-radius:999px;
+  background: rgba(255,255,255,.35);
   transform: scale(0);
-  opacity:.22;
-  background: currentColor;
+  animation: ripple .55s ease-out forwards;
   pointer-events:none;
-  animation: ripple 520ms var(--ease-out) forwards;
-  mix-blend-mode: multiply;
+  mix-blend-mode: overlay;
 }
 @keyframes ripple{
-  to{transform: scale(1); opacity:0;}
+  to{ transform: scale(1); opacity:0; }
 }
 </style>
 
@@ -2889,30 +2836,27 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 
 <script id="app-motion-js">
-/* ===== APP-like motion patch (non-invasive, no network, no cloud calls) ===== */
+/* ===== App-like motion patch (safe, no override of business/cloud logic) ===== */
 (function(){
-  function raf(fn){ requestAnimationFrame(fn); }
+  const raf = (fn)=>requestAnimationFrame(fn);
 
-  // 1) Mark mounted for page-enter animation
-  document.addEventListener('DOMContentLoaded', () => {
-    raf(()=>document.body.classList.add('app-mounted'));
-  });
+  // page enter
+  document.addEventListener('DOMContentLoaded', ()=>raf(()=>document.body.classList.add('app-mounted')));
 
-  // 2) Animate table rows after each renderTable()
+  // animate rows after renderTable()
   function patchRenderTable(){
     const fn = window.renderTable;
-    if(typeof fn !== 'function') return false;
-
-    if(fn.__motion_patched) return true;
+    if(typeof fn !== 'function' || fn.__motion_patched) return;
     function wrapped(){
       const res = fn.apply(this, arguments);
       raf(()=>{
-        const rows = document.querySelectorAll('#table-body tr');
+        const tbody = document.querySelector('#table-body');
+        if(!tbody) return;
+        const rows = tbody.querySelectorAll('tr');
         rows.forEach((tr, i)=>{
           tr.classList.remove('row-enter');
-          // restart animation
-          void tr.offsetWidth;
-          tr.style.setProperty('--d', (Math.min(i, 20) * 18) + 'ms');
+          void tr.offsetWidth; // restart
+          tr.style.setProperty('--d', (Math.min(i, 20) * 16) + 'ms');
           tr.classList.add('row-enter');
         });
       });
@@ -2920,46 +2864,43 @@ const btnRefresh = document.getElementById("adminRefresh");
     }
     wrapped.__motion_patched = true;
     window.renderTable = wrapped;
-    return true;
   }
+  let tries=0;
+  const t=setInterval(()=>{ tries++; patchRenderTable(); if(window.renderTable || tries>50) { if(window.renderTable) patchRenderTable(); if(tries>50) clearInterval(t);} }, 120);
 
-  // Try patching early + later (because renderTable is defined in main script)
-  let tries = 0;
-  const timer = setInterval(()=>{
-    tries++;
-    if(patchRenderTable() || tries > 40) clearInterval(timer);
-  }, 200);
-
-  // 3) Make cloud card open/close animated without changing business logic
-  document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('addon-toggle');
+  // cloud panel open/close animation by observing visibility (no click override)
+  document.addEventListener('DOMContentLoaded', ()=>{
     const card = document.getElementById('addon-card');
-    if(!toggle || !card) return;
+    if(!card) return;
 
-    // Remove old onclick (defined inline) safely by overwriting
-    toggle.onclick = function(){
-      const open = card.classList.contains('is-open');
-      if(open){
-        card.classList.remove('is-open');
-        card.classList.add('is-closing');
-        setTimeout(()=>card.classList.remove('is-closing'), 200);
-      }else{
-        card.classList.remove('is-closing');
-        card.classList.add('is-open');
+    let wasVisible = (getComputedStyle(card).display !== 'none');
+    function sync(){
+      const visible = (getComputedStyle(card).display !== 'none');
+      if(visible && !wasVisible){
+        card.classList.remove('motion-closing');
+        card.classList.add('motion-open');
+        // cleanup after animation
+        setTimeout(()=>card.classList.remove('motion-open'), 220);
+      }else if(!visible && wasVisible){
+        // if it gets hidden immediately, we can still play closing animation briefly by forcing display
+        // BUT to avoid breaking logic, we just clean classes.
+        card.classList.remove('motion-open');
+        card.classList.remove('motion-closing');
       }
-    };
+      wasVisible = visible;
+    }
+    const mo = new MutationObserver(sync);
+    mo.observe(card, {attributes:true, attributeFilter:['style','class']});
   });
 
-  // 4) Login box enter animation whenever it becomes visible
-  document.addEventListener('DOMContentLoaded', () => {
+  // login box pop
+  document.addEventListener('DOMContentLoaded', ()=>{
     const loginBox = document.getElementById('loginBox');
     if(!loginBox) return;
     const mo = new MutationObserver(()=>{
       const visible = loginBox.style.display !== 'none' && getComputedStyle(loginBox).display !== 'none';
       if(visible){
-        loginBox.classList.remove('motion-in');
-        void loginBox.offsetWidth;
-        loginBox.classList.add('motion-in');
+        loginBox.classList.remove('motion-in'); void loginBox.offsetWidth; loginBox.classList.add('motion-in');
       }else{
         loginBox.classList.remove('motion-in');
       }
@@ -2967,29 +2908,92 @@ const btnRefresh = document.getElementById("adminRefresh");
     mo.observe(loginBox, {attributes:true, attributeFilter:['style','class']});
   });
 
-  // 5) Ripple effect on taps (opt-in per button)
-  document.addEventListener('DOMContentLoaded', () => {
-    const targets = document.querySelectorAll(
-      '.action-btn, .cloud-addon-card button, .login-actions button, .delete-btn, .calculator-btn'
-    );
-    targets.forEach(btn=>{
+  // ripple on buttons (pointerdown; doesn't block existing handlers)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const selector = 'button, .action-btn, .delete-btn, .calculator-btn, #addon-card button, #addon-toggle';
+    document.querySelectorAll(selector).forEach(btn=>{
       btn.classList.add('ripple-wrap');
-      btn.addEventListener('click', (e)=>{
-        // do not block existing handlers
-        const rect = btn.getBoundingClientRect();
-        const size = Math.max(rect.width, rect.height) * 1.2;
-        const x = (e.clientX - rect.left) - size/2;
-        const y = (e.clientY - rect.top) - size/2;
-
-        const s = document.createElement('span');
-        s.className = 'ripple';
-        s.style.width = s.style.height = size + 'px';
-        s.style.left = x + 'px';
-        s.style.top  = y + 'px';
-        btn.appendChild(s);
-        setTimeout(()=>{ try{s.remove();}catch(_){} }, 600);
+      btn.addEventListener('pointerdown', (e)=>{
+        try{
+          const rect = btn.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height) * 1.25;
+          const x = (e.clientX - rect.left) - size/2;
+          const y = (e.clientY - rect.top)  - size/2;
+          const s = document.createElement('span');
+          s.className='ripple';
+          s.style.width = s.style.height = size + 'px';
+          s.style.left = x + 'px';
+          s.style.top  = y + 'px';
+          btn.appendChild(s);
+          setTimeout(()=>{ try{s.remove();}catch(_){} }, 650);
+        }catch(_){}
       }, {passive:true});
     });
+  });
+
+  // FIX 1: prevent ☁️ panel open freeze by not touching its toggle logic (done) + avoid observer storms
+  // FIX 2: keep ☁️ button fixed to viewport (not scrolling with page)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    function findCloudBtn(){
+      return document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
+    }
+
+    function applyFixed(btn){
+      if(!btn) return;
+      btn.style.position = 'fixed';
+      btn.style.zIndex = '99999';
+      btn.style.willChange = 'transform';
+
+      // compute desired offset: top=50px, right gap=16px
+      const rect = btn.getBoundingClientRect();
+      const targetTop = 50;
+      const targetRightGap = 16;
+      const dx = (window.innerWidth - targetRightGap) - rect.right;
+      const dy = targetTop - rect.top;
+
+      btn.style.setProperty('--appfix-dx', dx + 'px');
+      btn.style.setProperty('--appfix-dy', dy + 'px');
+
+      const base = btn.dataset.__appBaseTransform || btn.style.transform || '';
+      const baseClean = (base && base !== 'none') ? base : '';
+      const next = baseClean + ' translate(var(--appfix-dx), var(--appfix-dy))';
+
+      if(btn.style.transform !== next){
+        btn.dataset.__appBaseTransform = baseClean; // keep latest base
+        btn.style.transform = next;
+      }
+    }
+
+    const btn = findCloudBtn();
+    if(btn) raf(()=>applyFixed(btn));
+
+    // Observe style changes on the button itself (other scripts may rewrite transform)
+    let guard=false;
+    const mo = new MutationObserver(()=>{
+      if(guard) return;
+      guard=true;
+      raf(()=>{
+        guard=false;
+        const b = findCloudBtn();
+        if(b) applyFixed(b);
+      });
+    });
+
+    // Start observing once button appears
+    const rootObs = new MutationObserver(()=>{
+      const b=findCloudBtn();
+      if(!b) return;
+      rootObs.disconnect();
+      mo.observe(b, {attributes:true, attributeFilter:['style','class']});
+      raf(()=>applyFixed(b));
+    });
+    if(!btn){
+      rootObs.observe(document.documentElement, {subtree:true, childList:true});
+    }else{
+      mo.observe(btn, {attributes:true, attributeFilter:['style','class']});
+    }
+
+    window.addEventListener('resize', ()=>{ const b=findCloudBtn(); if(b) raf(()=>applyFixed(b)); }, {passive:true});
   });
 
 })();
@@ -2997,15 +3001,3 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 </body>
 </html>
-
-
-
-
-
-
-<script>
-
-
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
