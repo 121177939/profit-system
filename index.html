@@ -2713,62 +2713,66 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 
+<style>
+/* ===== Cloud button hard-fix: pin to viewport top-right (no scroll drift) ===== */
+.cloud-addon-panel{
+  position: fixed !important;
+  top: 50px !important;
+  right: 16px !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+  will-change: transform;
+}
+.cloud-addon-card{
+  position: fixed !important;
+  top: 120px !important;
+  right: 16px !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+}
+</style>
+
 <script>
-/* === Cloud button hard-fix: keep it truly fixed on viewport (no transform math, no style observers) ===
-   - Avoids infinite loops / freezes
-   - Does NOT touch login/cloud business logic
-   - Does NOT wrap the ☁️ DOM (only re-parents to <body> to escape any transformed/scroll containers)
-*/
+/* ===== Cloud pin patch (safe): no observers on style, no transform stacking ===== */
 (function(){
-  function applyCloudFixed(){
+  function pin(){
     const panel = document.querySelector('.cloud-addon-panel');
-    const card  = document.querySelector('.cloud-addon-card');
-    if(!panel) return false;
-
-    // Re-parent to body to avoid "position:fixed inside transformed ancestor" behaving like absolute.
-    if(panel.parentElement !== document.body) document.body.appendChild(panel);
-    if(card && card.parentElement !== document.body) document.body.appendChild(card);
-
-    // Force fixed placement (top-right)
-    panel.style.setProperty('position','fixed','important');
-    panel.style.setProperty('top','50px','important');
-    panel.style.setProperty('right','16px','important');
-    panel.style.setProperty('bottom','auto','important');
-    panel.style.setProperty('left','auto','important');
-    panel.style.setProperty('transform','none','important');
-    panel.style.setProperty('margin','0','important');
-    panel.style.setProperty('z-index','2147483647','important');
-
-    if(card){
-      card.style.setProperty('position','fixed','important');
-      card.style.setProperty('top','120px','important'); // just below the button
-      card.style.setProperty('right','16px','important');
-      card.style.setProperty('bottom','auto','important');
-      card.style.setProperty('left','auto','important');
-      card.style.setProperty('transform','none','important');
-      card.style.setProperty('margin','0','important');
-      card.style.setProperty('z-index','2147483647','important');
+    if(!panel) return;
+    // Move to body to avoid transformed ancestors breaking position:fixed
+    if(panel.parentElement !== document.body){
+      document.body.appendChild(panel);
     }
-    return true;
+    panel.style.position = 'fixed';
+    panel.style.top = '50px';
+    panel.style.right = '16px';
+    panel.style.bottom = 'auto';
+    panel.style.left = 'auto';
+    panel.style.transform = 'none';
+
+    const card = panel.querySelector('.cloud-addon-card') || document.getElementById('addon-card');
+    if(card){
+      card.style.position = 'fixed';
+      card.style.top = '120px';
+      card.style.right = '16px';
+      card.style.bottom = 'auto';
+      card.style.left = 'auto';
+      card.style.transform = 'none';
+    }
   }
 
-  // 1) Try immediately + on load
-  if(document.readyState === 'complete' || document.readyState === 'interactive'){
-    applyCloudFixed();
-  }else{
-    document.addEventListener('DOMContentLoaded', applyCloudFixed, { once:true });
+  // run after DOM ready
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', pin, { once:true });
+  } else {
+    pin();
   }
 
-  // 2) Watch ONLY for node insertion (no watching style/attrs to avoid loops)
-  const mo = new MutationObserver(function(){
-    if(applyCloudFixed()) mo.disconnect();
-  });
-  mo.observe(document.documentElement, { childList:true, subtree:true });
-
-  // 3) Re-assert on user-driven layout changes (lightweight; no loops)
-  const reapply = () => requestAnimationFrame(applyCloudFixed);
-  window.addEventListener('scroll', reapply, { passive:true });
-  window.addEventListener('resize', reapply, { passive:true });
+  // lightweight re-pin on scroll/resize and occasional sanity check
+  window.addEventListener('scroll', () => { requestAnimationFrame(pin); }, { passive:true });
+  window.addEventListener('resize', () => { requestAnimationFrame(pin); }, { passive:true });
+  setInterval(pin, 1500);
 })();
 </script>
 
