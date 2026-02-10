@@ -1870,11 +1870,10 @@
     </script>
 
 <style>
-.cloud-addon-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:sans-serif}
+.cloud-addon-panel{position:fixed;right:16px;top:50px;bottom:auto;z-index:2147483647;font-family:sans-serif}
 .cloud-addon-toggle{width:56px;height:56px;border-radius:16px;background:#111827;color:#fff;
 display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
-.cloud-addon-card{position:fixed;right:20px;bottom:90px;width:260px;background:#fff;
-border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
+.cloud-addon-card{position:fixed;right:16px;top:120px;bottom:auto;width:260px;background:#fff;border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
 .cloud-addon-card button{width:100%;margin:6px 0;padding:10px;border-radius:12px;
 border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
@@ -2714,87 +2713,17 @@ const btnRefresh = document.getElementById("adminRefresh");
 })();
 </script>
 
-
-<style id="cloud-pin-css">
-/* Safe cloud pin: keep it fixed top-right, never follow scroll */
-.cloud-addon-panel{ position:fixed !important; top:50px !important; right:16px !important; bottom:auto !important; left:auto !important; transform:none !important; }
-.cloud-addon-card{ position:fixed !important; right:16px !important; left:auto !important; bottom:auto !important; transform:none !important; }
-</style>
-
-
-<script id="cloud-pin-js">
-(function(){
-  const TARGET_TOP = 50;
-  const TARGET_RIGHT = 16;
-  const GAP = 10;
-
-  let rafId = 0;
-  function pin(){
-    rafId = 0;
-    const panel = document.querySelector('.cloud-addon-panel');
-    const card  = document.querySelector('.cloud-addon-card');
-    if(panel){
-      // Force fixed, top-right
-      panel.style.position = 'fixed';
-      panel.style.top = TARGET_TOP + 'px';
-      panel.style.right = TARGET_RIGHT + 'px';
-      panel.style.left = 'auto';
-      panel.style.bottom = 'auto';
-      panel.style.transform = 'none';
-      panel.style.zIndex = panel.style.zIndex || '2147483647';
-    }
-    if(card){
-      card.style.position = 'fixed';
-      card.style.right = TARGET_RIGHT + 'px';
-      card.style.left = 'auto';
-      card.style.bottom = 'auto';
-      card.style.transform = 'none';
-
-      // Place card under the panel button when visible; otherwise keep a reasonable default
-      const p = panel || document.querySelector('#addon-toggle') || document.querySelector('.cloud-addon-toggle');
-      if(p){
-        const rect = p.getBoundingClientRect();
-        const top = Math.round(rect.bottom + GAP);
-        card.style.top = top + 'px';
-      }else{
-        card.style.top = (TARGET_TOP + 70) + 'px';
-      }
-    }
-  }
-
-  function schedulePin(){
-    if(rafId) return;
-    rafId = requestAnimationFrame(pin);
-  }
-
-  // Run on load, and on user interactions that commonly cause the jump
-  document.addEventListener('DOMContentLoaded', schedulePin);
-  window.addEventListener('load', schedulePin);
-  window.addEventListener('resize', schedulePin, {passive:true});
-  window.addEventListener('scroll', schedulePin, {passive:true, capture:true});
-
-  // Also run shortly after clicks (original scripts may reposition after a click)
-  document.addEventListener('click', (e)=>{
-    const t = e.target;
-    if(!t) return;
-    if(t.closest && (t.closest('.cloud-addon-panel') || t.closest('.cloud-addon-card') || t.id==='addon-toggle')){
-      schedulePin();
-      setTimeout(schedulePin, 0);
-      setTimeout(schedulePin, 80);
-    }
-  }, true);
-
-  // Low-frequency watchdog to correct occasional drift without MutationObserver loops
-  let ticks = 0;
-  const timer = setInterval(()=>{
-    schedulePin();
-    ticks++;
-    if(ticks > 600){ // ~10 minutes then stop
-      clearInterval(timer);
-    }
-  }, 1000);
-})();
-</script>
-
 </body>
 </html>
+
+
+
+
+
+
+<script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
