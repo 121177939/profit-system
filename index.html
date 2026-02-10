@@ -598,42 +598,52 @@
     
 /* ===== 管理员面板：三按钮并排 ===== */
 
-/* ===== 管理员三件套：更美观、紧凑、同一行 ===== */
+/* ===== 管理员三件套：重新设计（更干净、不花哨） ===== */
 #adminPanel .admin-action-row{
   display:flex;
   gap:10px;
-  margin-top:8px;
+  margin-top:10px;
 }
 #adminPanel .admin-action-row .admin-btn{
   flex:1;
-  height:36px;
-  border-radius:12px;
+  height:38px;
+  border-radius:14px;
   font-size:14px;
-  font-weight:600;
+  font-weight:700;
+  letter-spacing:.5px;
   padding:0 10px;
   white-space:nowrap;
   border:1px solid rgba(17,24,39,.18);
-  background:#fff;
+  background:#ffffff;
   color:#111827;
-  box-shadow:0 6px 18px rgba(17,24,39,.06);
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow: 0 8px 22px rgba(17,24,39,.08);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
 }
 #adminPanel .admin-action-row .admin-btn:active{
   transform: scale(.98);
-  box-shadow:0 4px 12px rgba(17,24,39,.06);
+  box-shadow: 0 6px 16px rgba(17,24,39,.08);
 }
+#adminPanel .admin-action-row .admin-btn:disabled{
+  opacity:.45;
+  box-shadow:none;
+  filter: grayscale(20%);
+}
+
+/* 语义配色：轻背景 + 清晰文字（不刺眼） */
 #adminPanel .admin-action-row .admin-btn-create{
-  background: linear-gradient(180deg, rgba(16,185,129,.10), rgba(16,185,129,.02));
-  border-color: rgba(16,185,129,.35);
+  background: rgba(34,197,94,.10);
+  border-color: rgba(34,197,94,.35);
+  color: #065f46;
 }
 #adminPanel .admin-action-row .admin-btn-reset{
-  background: linear-gradient(180deg, rgba(245,158,11,.12), rgba(245,158,11,.02));
-  border-color: rgba(245,158,11,.40);
+  background: rgba(59,130,246,.10);
+  border-color: rgba(59,130,246,.35);
+  color: #1e3a8a;
 }
 #adminPanel .admin-action-row .admin-btn-delete{
-  background: linear-gradient(180deg, rgba(239,68,68,.10), rgba(239,68,68,.02));
+  background: rgba(239,68,68,.10);
   border-color: rgba(239,68,68,.40);
-  color:#991b1b;
+  color: #991b1b;
 }
 
 #adminPanel .admin-action-row{display:flex; gap:12px; align-items:stretch;}
@@ -1912,30 +1922,6 @@
 .cloud-addon-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:sans-serif}
 .cloud-addon-toggle{width:56px;height:56px;border-radius:16px;background:#111827;color:#fff;
 display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
-
-/* ☁️ 小动效（不影响定位机制） */
-.cloud-addon-toggle{
-  user-select:none;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
-  box-shadow: 0 10px 26px rgba(0,0,0,.22);
-}
-.cloud-addon-toggle:active{
-  transform: scale(.92);
-}
-.cloud-addon-toggle.open{
-  transform: scale(.95) rotate(-8deg);
-  box-shadow: 0 14px 34px rgba(0,0,0,.28);
-  filter: brightness(1.05);
-}
-@keyframes cloudBreath{
-  0%,100%{ transform: translateY(0); }
-  50%{ transform: translateY(-2px); }
-}
-.cloud-addon-toggle.idle{
-  animation: cloudBreath 2.6s ease-in-out infinite;
-}
-
 .cloud-addon-card{position:fixed;right:20px;bottom:90px;width:260px;background:#fff;
 border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
 .cloud-addon-card button{width:100%;margin:6px 0;padding:10px;border-radius:12px;
@@ -2037,13 +2023,7 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 (function(){
  const t=document.getElementById('addon-toggle');
  const c=document.getElementById('addon-card');
- t.classList.add('idle');
-t.onclick=function(){
-  const isOpen = (c.style.display==='block');
-  c.style.display = isOpen ? 'none' : 'block';
-  t.classList.toggle('open', !isOpen);
-  t.classList.toggle('idle', isOpen);
-};
+ t.onclick=function(){ c.style.display = (c.style.display==='block')?'none':'block'; };
 })();
 </script>
 
