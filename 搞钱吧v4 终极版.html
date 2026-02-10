@@ -1,0 +1,1684 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>商业订单利润管理系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 10px;
+            min-height: 100vh;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .header h1 i {
+            margin-right: 8px;
+            font-size: 20px;
+        }
+        
+        .total-profit {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .profit-positive {
+            color: #2ecc71;
+        }
+        
+        .profit-negative {
+            color: #e74c3c;
+        }
+        
+        .filter-status {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-status i {
+            margin-right: 4px;
+        }
+        
+        .actions {
+            display: flex;
+            margin-bottom: 15px;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #bdc3c7 transparent;
+        }
+        
+        .actions::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .actions::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 2px;
+        }
+        
+        .actions::-webkit-scrollbar-thumb {
+            background: #bdc3c7;
+            border-radius: 2px;
+        }
+        
+        .action-btn {
+            flex: 0 0 auto;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+        }
+        
+        .action-btn i {
+            margin-right: 6px;
+            font-size: 14px;
+        }
+        
+        .btn-add {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-export {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .btn-import {
+            background-color: #f39c12;
+            color: white;
+        }
+        
+        .btn-save {
+            background-color: #9b59b6;
+            color: white;
+        }
+        
+        .btn-calculator {
+            background-color: #e67e22;
+            color: white;
+        }
+        
+        .btn-filter {
+            background-color: #1abc9c;
+            color: white;
+            position: relative;
+        }
+        
+        .btn-filter.active {
+            background-color: #16a085;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-clear-filter {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .filter-select-container {
+            position: relative;
+            flex: 0 0 auto;
+            min-width: 140px;
+        }
+        
+        .filter-select {
+            width: 100%;
+            padding: 10px 30px 10px 10px;
+            border: none;
+            border-radius: 6px;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            background-color: #dfe6e9;
+        }
+        
+        .filter-select:hover {
+            background-color: #dfe6e9;
+        }
+        
+        .filter-select-container::after {
+            content: '\f0d7';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+            pointer-events: none;
+        }
+        
+        .action-btn:hover, .filter-select:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        }
+        
+        .action-btn:active, .filter-select:active {
+            transform: translateY(0);
+        }
+        
+        .table-container {
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        
+        thead {
+            background-color: #34495e;
+            color: white;
+        }
+        
+        th {
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+        
+        th.sortable:hover {
+            background-color: #2c3e50;
+        }
+        
+        .sort-indicator {
+            margin-left: 4px;
+            opacity: 0.7;
+        }
+        
+        tbody tr {
+            border-bottom: 1px solid #f1f1f1;
+            transition: background-color 0.2s;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        tbody tr:hover {
+            background-color: #f0f7ff;
+        }
+        
+        td {
+            padding: 8px;
+            font-size: 12.5px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 12.5px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        .profit-cell {
+            font-weight: 600;
+        }
+        
+        .date-cell {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .date-cell:hover {
+            color: #3498db;
+        }
+        
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .delete-btn i {
+            font-size: 11px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 15px;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: 500;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        /* 计算器样式 */
+        .calculator-container {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            width: 300px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            display: none;
+            overflow: hidden;
+        }
+        
+        .calculator-header {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+            color: white;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .calculator-title {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .calculator-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        
+        .calculator-close:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .calculator-display {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #eaeaea;
+            text-align: right;
+            font-size: 22px;
+            font-weight: 600;
+            min-height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .calculator-history {
+            font-size: 13px;
+            color: #7f8c8d;
+            min-height: 18px;
+            width: 100%;
+            text-align: right;
+            margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .calculator-current {
+            font-size: 26px;
+            width: 100%;
+            text-align: right;
+            word-break: break-all;
+        }
+        
+        .calculator-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background-color: #ddd;
+        }
+        
+        .calculator-btn {
+            border: none;
+            padding: 15px 8px;
+            font-size: 16px;
+            background-color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .calculator-btn:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .calculator-btn.operator {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .calculator-btn.equals {
+            background-color: #e67e22;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .calculator-btn.equals:hover {
+            background-color: #d35400;
+        }
+        
+        .calculator-btn.clear {
+            background-color: #e74c3c;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .calculator-btn.clear:hover {
+            background-color: #c0392b;
+        }
+        
+        .calculator-btn.zero {
+            grid-column: span 2;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+            }
+            
+            .header {
+                margin-bottom: 12px;
+                padding: 12px;
+            }
+            
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .total-profit {
+                font-size: 22px;
+            }
+            
+            .actions {
+                margin-bottom: 12px;
+                gap: 6px;
+            }
+            
+            .action-btn, .filter-select {
+                font-size: 12px;
+                padding: 8px 10px;
+            }
+            
+            .action-btn i {
+                font-size: 13px;
+                margin-right: 4px;
+            }
+            
+            .filter-select-container {
+                min-width: 120px;
+            }
+            
+            .filter-select {
+                padding: 8px 25px 8px 8px;
+            }
+            
+            th, td {
+                padding: 6px;
+                font-size: 12px;
+            }
+            
+            input, select {
+                padding: 5px 6px;
+                font-size: 12px;
+            }
+            
+            .table-container {
+                margin-bottom: 12px;
+            }
+            
+            .calculator-container {
+                width: 280px;
+                right: 8px;
+                bottom: 8px;
+            }
+            
+            .calculator-display {
+                font-size: 18px;
+                min-height: 50px;
+            }
+            
+            .calculator-history {
+                font-size: 11px;
+            }
+            
+            .calculator-current {
+                font-size: 22px;
+            }
+            
+            .calculator-btn {
+                padding: 12px 6px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-chart-line"></i> 商业订单利润管理系统</h1>
+            <p>总计 <span id="total-count">0</span> 笔订单</p>
+            <div class="total-profit" id="total-profit">总利润: ¥0.00</div>
+            <div class="filter-status" id="filter-status">
+                <i class="fas fa-filter"></i> <span id="filter-status-text">显示全部订单</span>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="action-btn btn-add" id="add-btn">
+                <i class="fas fa-plus-circle"></i> 新增
+            </button>
+            <button class="action-btn btn-export" id="export-btn">
+                <i class="fas fa-file-export"></i> 导出
+            </button>
+            <button class="action-btn btn-import" id="import-btn">
+                <i class="fas fa-file-import"></i> 导入
+            </button>
+            <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls">
+            <button class="action-btn btn-save" id="save-btn">
+                <i class="fas fa-save"></i> 保存
+            </button>
+            <button class="action-btn btn-calculator" id="calculator-btn">
+                <i class="fas fa-calculator"></i> 计算器
+            </button>
+            
+            <!-- 下单人筛选框 -->
+            <div class="filter-select-container">
+                <select class="filter-select" id="customer-filter">
+                    <option value="">全部下单人</option>
+                    <!-- 下单人选项将通过JS动态添加 -->
+                </select>
+            </div>
+            
+            <!-- 产品筛选框 -->
+            <div class="filter-select-container">
+                <select class="filter-select" id="product-filter">
+                    <option value="">全部产品</option>
+                    <!-- 产品选项将通过JS动态添加 -->
+                </select>
+            </div>
+            
+            <button class="action-btn btn-clear-filter" id="clear-filter">
+                <i class="fas fa-times-circle"></i> 清除筛选
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <table id="orders-table">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;" class="sortable" id="date-header">
+                            日期
+                            <span class="sort-indicator" id="date-sort">↓</span>
+                        </th>
+                        <th>下单人</th>
+                        <th>产品</th>
+                        <th style="width: 80px;">下单金额</th>
+                        <th style="width: 60px;">返款</th>
+                        <th style="width: 60px;">运费</th>
+                        <th style="width: 80px;" class="sortable" id="sell-amount-header">
+                            售出金额
+                            <span class="sort-indicator" id="sell-amount-sort">↕</span>
+                        </th>
+                        <th style="width: 80px;">利润</th>
+                        <th style="width: 100px;">物流单号</th>
+                        <th>备注</th>
+                        <th style="width: 60px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- 行将通过JS动态添加 -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="footer">
+            商业订单利润管理系统 &copy; 2026 | 专为移动端优化
+        </div>
+    </div>
+    
+    <!-- 计算器容器 -->
+    <div class="calculator-container" id="calculator">
+        <div class="calculator-header">
+            <div class="calculator-title">计算器</div>
+            <button class="calculator-close" id="calculator-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="calculator-display">
+            <div class="calculator-history" id="calculator-history"></div>
+            <div class="calculator-current" id="calculator-current">0</div>
+        </div>
+        <div class="calculator-buttons">
+            <button class="calculator-btn clear" data-action="clear">C</button>
+            <button class="calculator-btn clear" data-action="clear-entry">CE</button>
+            <button class="calculator-btn operator" data-action="percent">%</button>
+            <button class="calculator-btn operator" data-action="divide">÷</button>
+            
+            <button class="calculator-btn" data-number="7">7</button>
+            <button class="calculator-btn" data-number="8">8</button>
+            <button class="calculator-btn" data-number="9">9</button>
+            <button class="calculator-btn operator" data-action="multiply">×</button>
+            
+            <button class="calculator-btn" data-number="4">4</button>
+            <button class="calculator-btn" data-number="5">5</button>
+            <button class="calculator-btn" data-number="6">6</button>
+            <button class="calculator-btn operator" data-action="subtract">-</button>
+            
+            <button class="calculator-btn" data-number="1">1</button>
+            <button class="calculator-btn" data-number="2">2</button>
+            <button class="calculator-btn" data-number="3">3</button>
+            <button class="calculator-btn operator" data-action="add">+</button>
+            
+            <button class="calculator-btn zero" data-number="0">0</button>
+            <button class="calculator-btn" data-action="decimal">.</button>
+            <button class="calculator-btn equals" data-action="equals">=</button>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 初始化数据
+        let orders = JSON.parse(localStorage.getItem('orderProfitData')) || [];
+        let isDateFullFormat = {};
+        
+        // 排序状态
+        let dateSortState = 'desc'; // 'none', 'asc', 'desc' - 默认按日期降序
+        let sellAmountSortState = 'none'; // 'none', 'asc', 'desc'
+        
+        // 筛选状态
+        let currentCustomerFilter = ''; // 当前筛选的下单人
+        let currentProductFilter = ''; // 当前筛选的产品
+        
+        // DOM元素
+        const tableBody = document.getElementById('table-body');
+        const addBtn = document.getElementById('add-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const importBtn = document.getElementById('import-btn');
+        const fileInput = document.getElementById('file-input');
+        const saveBtn = document.getElementById('save-btn');
+        const calculatorBtn = document.getElementById('calculator-btn');
+        const totalProfitElement = document.getElementById('total-profit');
+        const totalCountElement = document.getElementById('total-count');
+        const toast = document.getElementById('toast');
+        const dateHeader = document.getElementById('date-header');
+        const dateSortIndicator = document.getElementById('date-sort');
+        const sellAmountHeader = document.getElementById('sell-amount-header');
+        const sellAmountSortIndicator = document.getElementById('sell-amount-sort');
+        const filterStatusText = document.getElementById('filter-status-text');
+        
+        // 筛选相关DOM元素
+        const customerFilter = document.getElementById('customer-filter');
+        const productFilter = document.getElementById('product-filter');
+        const clearFilterBtn = document.getElementById('clear-filter');
+        
+        // 计算器相关DOM元素
+        const calculator = document.getElementById('calculator');
+        const calculatorCurrent = document.getElementById('calculator-current');
+        const calculatorHistory = document.getElementById('calculator-history');
+        const calculatorClose = document.getElementById('calculator-close');
+        const calculatorButtons = document.querySelectorAll('.calculator-btn');
+        
+        // 计算器状态
+        let calculatorDisplayValue = '0';
+        let calculatorHistoryValue = '';
+        let firstOperand = null;
+        let operator = null;
+        let waitingForSecondOperand = false;
+        let shouldResetDisplay = false;
+        
+        // 显示提示消息
+        function showToast(message, duration = 3000) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+        
+        // 格式化日期为月-日
+        function formatDateToMonthDay(dateString) {
+            if (!dateString || dateString === 'undefined') return '点击设置';
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${month}-${day}`;
+        }
+        
+        // 计算单行利润
+        function calculateProfit(sellAmount, orderAmount, refund, shipping) {
+            const sell = parseFloat(sellAmount) || 0;
+            const order = parseFloat(orderAmount) || 0;
+            const ref = parseFloat(refund) || 0;
+            const ship = parseFloat(shipping) || 0;
+            
+            return sell - order - ref - ship;
+        }
+        
+        // 格式化货币
+        function formatCurrency(amount) {
+            return '¥' + parseFloat(amount || 0).toFixed(2);
+        }
+        
+        // 计算并更新总利润
+        function updateTotalProfit() {
+            let totalProfit = 0;
+            const filteredOrders = getFilteredOrders();
+            
+            filteredOrders.forEach(order => {
+                const profit = calculateProfit(
+                    order.sellAmount, 
+                    order.orderAmount, 
+                    order.refund, 
+                    order.shipping
+                );
+                totalProfit += profit;
+            });
+            
+            totalProfitElement.textContent = `总利润: ${formatCurrency(totalProfit)}`;
+            totalProfitElement.className = `total-profit ${totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}`;
+            totalCountElement.textContent = filteredOrders.length;
+        }
+        
+        // 获取筛选后的订单
+        function getFilteredOrders() {
+            return orders.filter(order => {
+                // 检查下单人筛选
+                const customerMatch = !currentCustomerFilter || order.customer === currentCustomerFilter;
+                // 检查产品筛选
+                const productMatch = !currentProductFilter || order.product === currentProductFilter;
+                
+                return customerMatch && productMatch;
+            });
+        }
+        
+        // 根据排序状态排序订单
+        function sortOrders(ordersToSort) {
+            if (dateSortState === 'none' && sellAmountSortState === 'none') {
+                return ordersToSort;
+            }
+            
+            // 创建副本进行排序
+            const sortedOrders = [...ordersToSort];
+            
+            sortedOrders.sort((a, b) => {
+                // 优先按日期排序
+                if (dateSortState !== 'none') {
+                    const aDate = new Date(a.date || '1970-01-01').getTime();
+                    const bDate = new Date(b.date || '1970-01-01').getTime();
+                    
+                    if (aDate !== bDate) {
+                        return dateSortState === 'desc' ? bDate - aDate : aDate - bDate;
+                    }
+                }
+                
+                // 如果日期相同，再按售出金额排序
+                if (sellAmountSortState !== 'none') {
+                    const aAmount = parseFloat(a.sellAmount) || 0;
+                    const bAmount = parseFloat(b.sellAmount) || 0;
+                    
+                    if (aAmount !== bAmount) {
+                        return sellAmountSortState === 'desc' ? bAmount - aAmount : aAmount - bAmount;
+                    }
+                }
+                
+                return 0;
+            });
+            
+            return sortedOrders;
+        }
+        
+        // 更新排序指示器
+        function updateSortIndicators() {
+            // 更新日期排序指示器
+            switch(dateSortState) {
+                case 'none':
+                    dateSortIndicator.textContent = '↕';
+                    break;
+                case 'asc':
+                    dateSortIndicator.textContent = '↑';
+                    break;
+                case 'desc':
+                    dateSortIndicator.textContent = '↓';
+                    break;
+            }
+            
+            // 更新售出金额排序指示器
+            switch(sellAmountSortState) {
+                case 'none':
+                    sellAmountSortIndicator.textContent = '↕';
+                    break;
+                case 'asc':
+                    sellAmountSortIndicator.textContent = '↑';
+                    break;
+                case 'desc':
+                    sellAmountSortIndicator.textContent = '↓';
+                    break;
+            }
+        }
+        
+        // 切换日期排序状态
+        function toggleDateSort() {
+            const states = ['desc', 'asc', 'none'];
+            const currentIndex = states.indexOf(dateSortState);
+            dateSortState = states[(currentIndex + 1) % states.length];
+            
+            // 如果启用了日期排序，则禁用售出金额排序
+            if (dateSortState !== 'none') {
+                sellAmountSortState = 'none';
+            }
+            
+            updateSortIndicators();
+            renderTable();
+            updateTotalProfit();
+            showToast(`已按日期${dateSortState === 'none' ? '取消排序' : dateSortState === 'asc' ? '升序排序' : '降序排序'}`);
+        }
+        
+        // 切换售出金额排序状态
+        function toggleSellAmountSort() {
+            const states = ['none', 'asc', 'desc'];
+            const currentIndex = states.indexOf(sellAmountSortState);
+            sellAmountSortState = states[(currentIndex + 1) % states.length];
+            
+            // 如果启用了售出金额排序，则禁用日期排序
+            if (sellAmountSortState !== 'none') {
+                dateSortState = 'none';
+            }
+            
+            updateSortIndicators();
+            renderTable();
+            showToast(`已按售出金额${sellAmountSortState === 'none' ? '取消排序' : sellAmountSortState === 'asc' ? '升序排序' : '降序排序'}`);
+        }
+        
+        // 创建表格行
+        function createTableRow(order, index) {
+            const row = document.createElement('tr');
+            const profit = calculateProfit(order.sellAmount, order.orderAmount, order.refund, order.shipping);
+            
+            // 处理日期显示
+            const dateDisplay = isDateFullFormat[index] ? order.date : formatDateToMonthDay(order.date);
+            
+            row.innerHTML = `
+                <td class="date-cell" data-index="${index}" data-full-date="${order.date || ''}">${dateDisplay}</td>
+                <td><input type="text" class="editable" data-field="customer" value="${order.customer || ''}"></td>
+                <td><input type="text" class="editable" data-field="product" value="${order.product || ''}"></td>
+                <td><input type="number" step="0.01" class="editable" data-field="orderAmount" value="${order.orderAmount || '0'}"></td>
+                <td><input type="number" step="0.01" class="editable" data-field="refund" value="${order.refund || '0'}"></td>
+                <td><input type="number" step="0.01" class="editable" data-field="shipping" value="${order.shipping || '0'}"></td>
+                <td><input type="number" step="0.01" class="editable" data-field="sellAmount" value="${order.sellAmount || '0'}"></td>
+                <td class="profit-cell" style="color: ${profit >= 0 ? '#2ecc71' : '#e74c3c'}">${formatCurrency(profit)}</td>
+                <td><input type="text" class="editable" data-field="trackingNumber" value="${order.trackingNumber || ''}"></td>
+                <td><input type="text" class="editable" data-field="notes" value="${order.notes || ''}"></td>
+                <td><button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i> 删除</button></td>
+            `;
+            
+            return row;
+        }
+        
+        // 更新筛选状态显示
+        function updateFilterStatus() {
+            const filteredOrders = getFilteredOrders();
+            let statusText = '';
+            
+            if (currentCustomerFilter && currentProductFilter) {
+                statusText = `筛选: 下单人=${currentCustomerFilter}, 产品=${currentProductFilter} (${filteredOrders.length} 条记录)`;
+            } else if (currentCustomerFilter) {
+                statusText = `筛选: 下单人=${currentCustomerFilter} (${filteredOrders.length} 条记录)`;
+            } else if (currentProductFilter) {
+                statusText = `筛选: 产品=${currentProductFilter} (${filteredOrders.length} 条记录)`;
+            } else {
+                statusText = `显示全部订单 (${filteredOrders.length} 条记录)`;
+            }
+            
+            filterStatusText.textContent = statusText;
+            filterStatusText.style.color = (currentCustomerFilter || currentProductFilter) ? '#3498db' : '#bdc3c7';
+        }
+        
+        // 更新筛选器选项
+        function updateFilterOptions() {
+            // 获取所有不重复的下单人
+            const customers = [...new Set(orders.map(order => order.customer).filter(c => c))];
+            // 获取所有不重复的产品
+            const products = [...new Set(orders.map(order => order.product).filter(p => p))];
+            
+            // 清空现有选项（保留"全部下单人"选项）
+            const currentCustomerValue = customerFilter.value;
+            customerFilter.innerHTML = '<option value="">全部下单人</option>';
+            
+            // 添加下单人选项
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer;
+                option.textContent = customer;
+                customerFilter.appendChild(option);
+            });
+            
+            // 恢复当前选中的值
+            customerFilter.value = currentCustomerValue;
+            
+            // 清空现有选项（保留"全部产品"选项）
+            const currentProductValue = productFilter.value;
+            productFilter.innerHTML = '<option value="">全部产品</option>';
+            
+            // 添加产品选项
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product;
+                option.textContent = product;
+                productFilter.appendChild(option);
+            });
+            
+            // 恢复当前选中的值
+            productFilter.value = currentProductValue;
+        }
+        
+        // 应用筛选
+        function applyFilter() {
+            currentCustomerFilter = customerFilter.value;
+            currentProductFilter = productFilter.value;
+            renderTable();
+            updateFilterStatus();
+            
+            if (currentCustomerFilter || currentProductFilter) {
+                let message = '已筛选: ';
+                if (currentCustomerFilter) message += `下单人=${currentCustomerFilter}`;
+                if (currentCustomerFilter && currentProductFilter) message += ', ';
+                if (currentProductFilter) message += `产品=${currentProductFilter}`;
+                showToast(message);
+            } else {
+                showToast('已显示全部订单');
+            }
+        }
+        
+        // 清除筛选
+        function clearFilter() {
+            customerFilter.value = '';
+            productFilter.value = '';
+            currentCustomerFilter = '';
+            currentProductFilter = '';
+            renderTable();
+            updateFilterStatus();
+            showToast('筛选已清除，显示全部订单');
+        }
+        
+        // 渲染表格
+        function renderTable() {
+            tableBody.innerHTML = '';
+            
+            const filteredOrders = getFilteredOrders();
+            
+            if (filteredOrders.length === 0) {
+                const emptyRow = document.createElement('tr');
+                let message = '';
+                
+                if (currentCustomerFilter && currentProductFilter) {
+                    message = `没有找到下单人为"${currentCustomerFilter}"且产品为"${currentProductFilter}"的订单记录`;
+                } else if (currentCustomerFilter) {
+                    message = `没有找到下单人为"${currentCustomerFilter}"的订单记录`;
+                } else if (currentProductFilter) {
+                    message = `没有找到产品为"${currentProductFilter}"的订单记录`;
+                } else {
+                    message = '暂无订单数据，点击上方"新增"按钮添加第一条订单记录';
+                }
+                
+                emptyRow.innerHTML = `<td colspan="11" style="text-align: center; padding: 20px; color: #7f8c8d;">${message}</td>`;
+                tableBody.appendChild(emptyRow);
+                return;
+            }
+            
+            // 根据排序状态获取订单列表
+            const ordersToRender = sortOrders(filteredOrders);
+            
+            // 渲染订单行
+            ordersToRender.forEach((order, index) => {
+                // 获取原始索引
+                const originalIndex = orders.indexOf(order);
+                const row = createTableRow(order, originalIndex);
+                tableBody.appendChild(row);
+            });
+            
+            // 重新绑定事件
+            bindEvents();
+            
+            // 更新总利润
+            updateTotalProfit();
+            
+            // 更新筛选状态
+            updateFilterStatus();
+        }
+        
+        // 添加新行
+        function addNewRow() {
+            const newOrder = {
+                date: new Date().toISOString().split('T')[0],
+                customer: '',
+                product: '',
+                orderAmount: '0',
+                refund: '0',
+                shipping: '0',
+                sellAmount: '0',
+                trackingNumber: '',
+                notes: ''
+            };
+            
+            // 新订单添加到数组开头
+            orders.unshift(newOrder);
+            
+            // 确保按日期降序排序
+            dateSortState = 'desc';
+            sellAmountSortState = 'none';
+            
+            // 更新筛选器选项
+            updateFilterOptions();
+            
+            // 重新渲染表格
+            renderTable();
+            
+            showToast('已添加新订单行，请编辑信息');
+        }
+        
+        // 删除行
+        function deleteRow(index) {
+            if (confirm('确定要删除这条订单记录吗？')) {
+                // 从数组中删除
+                const deletedCustomer = orders[index].customer;
+                const deletedProduct = orders[index].product;
+                orders.splice(index, 1);
+                
+                // 更新筛选器选项
+                updateFilterOptions();
+                
+                // 如果删除的是当前筛选的下单人或产品，检查是否需要清除筛选
+                if (currentCustomerFilter === deletedCustomer || currentProductFilter === deletedProduct) {
+                    // 重新渲染表格，筛选器会自动处理
+                    renderTable();
+                } else {
+                    renderTable();
+                }
+                
+                showToast('订单已删除');
+            }
+        }
+        
+        // 保存数据到本地存储 - 修复：始终保存全部数据
+        function saveData() {
+            try {
+                // 从表格中获取最新数据（只更新显示的行）
+                updateOrdersFromTable();
+                
+                // 保存全部订单数据到本地存储
+                localStorage.setItem('orderProfitData', JSON.stringify(orders));
+                showToast('数据已成功保存到本地存储（保存全部数据）');
+            } catch (error) {
+                console.error('保存数据时出错:', error);
+                showToast('保存失败: ' + error.message);
+            }
+        }
+        
+        // 从表格中更新订单数据 - 修复：只更新显示的行，不替换整个orders数组
+        function updateOrdersFromTable() {
+            const rows = tableBody.querySelectorAll('tr');
+            
+            // 遍历所有行
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                
+                // 跳过空行提示
+                if (row.cells.length <= 1) continue;
+                
+                const inputs = row.querySelectorAll('input');
+                if (inputs.length === 0) continue;
+                
+                // 获取行的原始索引
+                const dateCell = row.querySelector('.date-cell');
+                const indexAttr = dateCell ? dateCell.getAttribute('data-index') : null;
+                
+                if (indexAttr === null || indexAttr === undefined) continue;
+                
+                const index = parseInt(indexAttr);
+                
+                // 如果索引有效，更新对应的订单数据
+                if (index >= 0 && index < orders.length) {
+                    // 获取日期
+                    const dateValue = dateCell ? dateCell.getAttribute('data-full-date') : '';
+                    
+                    // 更新订单数据
+                    orders[index].date = dateValue || new Date().toISOString().split('T')[0];
+                    orders[index].customer = inputs[0] ? inputs[0].value : '';
+                    orders[index].product = inputs[1] ? inputs[1].value : '';
+                    orders[index].orderAmount = inputs[2] ? inputs[2].value : '0';
+                    orders[index].refund = inputs[3] ? inputs[3].value : '0';
+                    orders[index].shipping = inputs[4] ? inputs[4].value : '0';
+                    orders[index].sellAmount = inputs[5] ? inputs[5].value : '0';
+                    orders[index].trackingNumber = inputs[6] ? inputs[6].value : '';
+                    orders[index].notes = inputs[7] ? inputs[7].value : '';
+                }
+            }
+            
+            // 更新筛选器选项
+            updateFilterOptions();
+        }
+        
+        // 导出为Excel - 修复：导出全部数据，不仅仅是筛选后的数据
+        function exportToExcel() {
+            try {
+                // 首先更新表格中的数据到orders数组
+                updateOrdersFromTable();
+                
+                // 准备导出数据 - 导出全部数据
+                const exportData = orders.map(order => {
+                    const profit = calculateProfit(
+                        order.sellAmount, 
+                        order.orderAmount, 
+                        order.refund, 
+                        order.shipping
+                    );
+                    
+                    return {
+                        '日期': order.date,
+                        '下单人': order.customer,
+                        '产品': order.product,
+                        '下单金额': parseFloat(order.orderAmount) || 0,
+                        '返款': parseFloat(order.refund) || 0,
+                        '运费': parseFloat(order.shipping) || 0,
+                        '售出金额': parseFloat(order.sellAmount) || 0,
+                        '利润': profit,
+                        '物流单号': order.trackingNumber,
+                        '备注': order.notes
+                    };
+                });
+                
+                // 添加汇总行
+                const totalProfit = exportData.reduce((sum, row) => sum + row.利润, 0);
+                exportData.push({
+                    '日期': '汇总',
+                    '下单人': '',
+                    '产品': '',
+                    '下单金额': '',
+                    '返款': '',
+                    '运费': '',
+                    '售出金额': '总计',
+                    '利润': totalProfit,
+                    '物流单号': '',
+                    '备注': ''
+                });
+                
+                // 创建工作簿和工作表
+                const worksheet = XLSX.utils.json_to_sheet(exportData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, '订单利润数据');
+                
+                // 设置列宽
+                const wscols = [
+                    {wch: 12}, // 日期
+                    {wch: 10}, // 下单人
+                    {wch: 20}, // 产品
+                    {wch: 10}, // 下单金额
+                    {wch: 10}, // 返款
+                    {wch: 10}, // 运费
+                    {wch: 10}, // 售出金额
+                    {wch: 10}, // 利润
+                    {wch: 20}, // 物流单号
+                    {wch: 30}  // 备注
+                ];
+                worksheet['!cols'] = wscols;
+                
+                // 生成文件名
+                const dateStr = new Date().toISOString().split('T')[0];
+                const filename = `订单利润数据_${dateStr}.xlsx`;
+                
+                // 导出文件
+                XLSX.writeFile(workbook, filename);
+                showToast('数据已导出为Excel文件（导出全部数据）');
+            } catch (error) {
+                console.error('导出Excel时出错:', error);
+                showToast('导出失败: ' + error.message);
+            }
+        }
+        
+        // 从Excel导入
+        function importFromExcel(file) {
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    // 转换数据格式
+                    const importedOrders = jsonData
+                        .filter(row => row['日期'] && row['日期'] !== '汇总')
+                        .map(row => ({
+                            date: row['日期'] instanceof Date ? 
+                                  row['日期'].toISOString().split('T')[0] : 
+                                  String(row['日期'] || ''),
+                            customer: String(row['下单人'] || ''),
+                            product: String(row['产品'] || ''),
+                            orderAmount: String(row['下单金额'] || '0'),
+                            refund: String(row['返款'] || '0'),
+                            shipping: String(row['运费'] || '0'),
+                            sellAmount: String(row['售出金额'] || '0'),
+                            trackingNumber: String(row['物流单号'] || ''),
+                            notes: String(row['备注'] || '')
+                        }));
+                    
+                    if (importedOrders.length === 0) {
+                        showToast('Excel文件中没有找到有效的订单数据');
+                        return;
+                    }
+                    
+                    // 确认导入
+                    if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
+                        orders = importedOrders;
+                        // 重置排序状态为日期降序
+                        dateSortState = 'desc';
+                        sellAmountSortState = 'none';
+                        updateSortIndicators();
+                        // 更新筛选器选项
+                        updateFilterOptions();
+                        renderTable();
+                        showToast(`成功导入 ${importedOrders.length} 条订单记录`);
+                    }
+                } catch (error) {
+                    console.error('导入Excel时出错:', error);
+                    showToast('导入失败: ' + error.message);
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 绑定事件
+        function bindEvents() {
+            // 绑定输入框变化事件
+            const inputs = tableBody.querySelectorAll('input');
+            inputs.forEach(input => {
+                // 移除之前的事件监听器
+                const newInput = input.cloneNode(true);
+                input.parentNode.replaceChild(newInput, input);
+                
+                newInput.addEventListener('change', function() {
+                    const row = this.closest('tr');
+                    const indexAttr = row.querySelector('.date-cell')?.getAttribute('data-index');
+                    
+                    if (indexAttr === null || indexAttr === undefined) return;
+                    
+                    const index = parseInt(indexAttr);
+                    const field = this.getAttribute('data-field');
+                    
+                    // 更新数据
+                    if (index >= 0 && index < orders.length) {
+                        orders[index][field] = this.value;
+                        
+                        // 如果是下单人或产品字段发生变化，更新筛选器选项
+                        if (field === 'customer' || field === 'product') {
+                            updateFilterOptions();
+                        }
+                        
+                        // 重新计算利润
+                        const profitCell = row.querySelector('.profit-cell');
+                        if (profitCell) {
+                            const profit = calculateProfit(
+                                orders[index].sellAmount,
+                                orders[index].orderAmount,
+                                orders[index].refund,
+                                orders[index].shipping
+                            );
+                            
+                            profitCell.textContent = formatCurrency(profit);
+                            profitCell.style.color = profit >= 0 ? '#2ecc71' : '#e74c3c';
+                            
+                            // 更新总利润
+                            updateTotalProfit();
+                        }
+                    }
+                });
+                
+                // 实时计算
+                newInput.addEventListener('input', function() {
+                    if (this.hasAttribute('data-field')) {
+                        const row = this.closest('tr');
+                        const field = this.getAttribute('data-field');
+                        
+                        if (field === 'orderAmount' || field === 'refund' || 
+                            field === 'shipping' || field === 'sellAmount') {
+                            
+                            const orderAmountInput = row.querySelector('input[data-field="orderAmount"]');
+                            const refundInput = row.querySelector('input[data-field="refund"]');
+                            const shippingInput = row.querySelector('input[data-field="shipping"]');
+                            const sellAmountInput = row.querySelector('input[data-field="sellAmount"]');
+                            
+                            if (!orderAmountInput || !refundInput || !shippingInput || !sellAmountInput) return;
+                            
+                            const orderAmount = parseFloat(orderAmountInput.value) || 0;
+                            const refund = parseFloat(refundInput.value) || 0;
+                            const shipping = parseFloat(shippingInput.value) || 0;
+                            const sellAmount = parseFloat(sellAmountInput.value) || 0;
+                            
+                            const profit = sellAmount - orderAmount - refund - shipping;
+                            const profitCell = row.querySelector('.profit-cell');
+                            
+                            if (profitCell) {
+                                profitCell.textContent = formatCurrency(profit);
+                                profitCell.style.color = profit >= 0 ? '#2ecc71' : '#e74c3c';
+                                
+                                // 更新总利润
+                                updateTotalProfit();
+                            }
+                        }
+                    }
+                });
+            });
+            
+            // 绑定日期单元格点击事件
+            const dateCells = tableBody.querySelectorAll('.date-cell');
+            dateCells.forEach(cell => {
+                // 移除之前的事件监听器
+                const newCell = cell.cloneNode(true);
+                cell.parentNode.replaceChild(newCell, cell);
+                
+                newCell.addEventListener('click', function() {
+                    const index = this.getAttribute('data-index');
+                    const fullDate = this.getAttribute('data-full-date');
+                    
+                    if (!fullDate || fullDate === 'undefined' || fullDate === '') {
+                        // 如果没有日期，设置为今天
+                        const today = new Date().toISOString().split('T')[0];
+                        this.setAttribute('data-full-date', today);
+                        this.textContent = formatDateToMonthDay(today);
+                        
+                        // 更新数据
+                        const rowIndex = parseInt(index);
+                        if (rowIndex >= 0 && rowIndex < orders.length) {
+                            orders[rowIndex].date = today;
+                        }
+                        return;
+                    }
+                    
+                    if (isDateFullFormat[index]) {
+                        // 切换到简略格式
+                        this.textContent = formatDateToMonthDay(fullDate);
+                        isDateFullFormat[index] = false;
+                    } else {
+                        // 切换到完整格式
+                        const date = new Date(fullDate);
+                        if (!isNaN(date.getTime())) {
+                            this.textContent = date.toLocaleDateString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                            });
+                        } else {
+                            this.textContent = fullDate;
+                        }
+                        isDateFullFormat[index] = true;
+                    }
+                });
+            });
+            
+            // 绑定删除按钮事件
+            const deleteButtons = tableBody.querySelectorAll('.delete-btn');
+            deleteButtons.forEach(button => {
+                // 移除之前的事件监听器
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                newButton.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    deleteRow(index);
+                });
+            });
+        }
+        
+        // 计算器功能
+        function initCalculator() {
+            // 显示计算器
+            calculatorBtn.addEventListener('click', function() {
+                calculator.style.display = 'block';
+            });
+            
+            // 关闭计算器
+            calculatorClose.addEventListener('click', function() {
+                calculator.style.display = 'none';
+            });
+            
+            // 计算器按钮点击事件
+            calculatorButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const action = this.getAttribute('data-action');
+                    const number = this.getAttribute('data-number');
+                    
+                    if (number !== null) {
+                        inputNumber(number);
+                    } else if (action !== null) {
+                        handleAction(action);
+                    }
+                    
+                    // 更新显示
+                    updateCalculatorDisplay();
+                });
+            });
+            
+            // 输入数字
+            function inputNumber(number) {
+                if (waitingForSecondOperand) {
+                    calculatorDisplayValue = number;
+                    waitingForSecondOperand = false;
+                } else {
+                    calculatorDisplayValue = calculatorDisplayValue === '0' ? number : calculatorDisplayValue + number;
+                }
+                
+                // 更新历史显示
+                if (operator !== null && firstOperand !== null && !waitingForSecondOperand) {
+                    calculatorHistoryValue = `${firstOperand} ${getOperatorSymbol(operator)} ${calculatorDisplayValue}`;
+                } else if (operator !== null && firstOperand !== null && waitingForSecondOperand) {
+                    calculatorHistoryValue = `${firstOperand} ${getOperatorSymbol(operator)}`;
+                } else {
+                    calculatorHistoryValue = '';
+                }
+            }
+            
+            // 处理操作符
+            function handleAction(action) {
+                switch (action) {
+                    case 'clear':
+                        // 完全清除
+                        calculatorDisplayValue = '0';
+                        calculatorHistoryValue = '';
+                        firstOperand = null;
+                        operator = null;
+                        waitingForSecondOperand = false;
+                        shouldResetDisplay = false;
+                        break;
+                    case 'clear-entry':
+                        // 清除当前输入
+                        calculatorDisplayValue = '0';
+                        if (operator !== null && firstOperand !== null) {
+                            calculatorHistoryValue = `${firstOperand} ${getOperatorSymbol(operator)}`;
+                        } else {
+                            calculatorHistoryValue = '';
+                        }
+                        break;
+                    case 'decimal':
+                        if (!calculatorDisplayValue.includes('.')) {
+                            calculatorDisplayValue += '.';
+                        }
+                        break;
+                    case 'percent':
+                        const currentValue = parseFloat(calculatorDisplayValue);
+                        calculatorDisplayValue = (currentValue / 100).toString();
+                        calculatorHistoryValue = `${currentValue}% =`;
+                        break;
+                    case 'add':
+                    case 'subtract':
+                    case 'multiply':
+                    case 'divide':
+                        handleOperator(action);
+                        break;
+                    case 'equals':
+                        if (operator && firstOperand !== null) {
+                            const secondOperand = parseFloat(calculatorDisplayValue);
+                            const result = calculate(firstOperand, secondOperand, operator);
+                            
+                            // 确保结果是精确的，避免浮点数精度问题
+                            const preciseResult = Math.round(result * 1000000) / 1000000;
+                            
+                            // 显示完整计算过程
+                            calculatorHistoryValue = `${firstOperand} ${getOperatorSymbol(operator)} ${secondOperand} =`;
+                            calculatorDisplayValue = preciseResult.toString();
+                            
+                            // 重置状态，但保留结果作为下一次计算的第一个操作数
+                            firstOperand = preciseResult;
+                            waitingForSecondOperand = true;
+                            shouldResetDisplay = true;
+                        }
+                        break;
+                }
+            }
+            
+            // 处理运算符
+            function handleOperator(nextOperator) {
+                const inputValue = parseFloat(calculatorDisplayValue);
+                
+                if (operator !== null && !waitingForSecondOperand) {
+                    // 如果已经有操作符和第一个操作数，并且已经输入了第二个操作数，先计算
+                    const result = calculate(firstOperand, inputValue, operator);
+                    const preciseResult = Math.round(result * 1000000) / 1000000;
+                    calculatorDisplayValue = preciseResult.toString();
+                    firstOperand = preciseResult;
+                } else {
+                    // 否则设置第一个操作数
+                    firstOperand = inputValue;
+                }
+                
+                operator = nextOperator;
+                waitingForSecondOperand = true;
+                shouldResetDisplay = true;
+                
+                // 更新历史显示
+                calculatorHistoryValue = `${firstOperand} ${getOperatorSymbol(operator)}`;
+            }
+            
+            // 执行计算
+            function calculate(first, second, operator) {
+                switch (operator) {
+                    case 'add': return first + second;
+                    case 'subtract': return first - second;
+                    case 'multiply': return first * second;
+                    case 'divide': return first / second;
+                    default: return second;
+                }
+            }
+            
+            // 获取操作符符号
+            function getOperatorSymbol(op) {
+                switch (op) {
+                    case 'add': return '+';
+                    case 'subtract': return '-';
+                    case 'multiply': return '×';
+                    case 'divide': return '÷';
+                    default: return '';
+                }
+            }
+            
+            // 格式化显示数字
+            function formatDisplayNumber(numStr) {
+                const num = parseFloat(numStr);
+                if (isNaN(num)) return '0';
+                
+                // 如果是整数，不显示小数点
+                if (Number.isInteger(num)) {
+                    return num.toString();
+                }
+                
+                // 否则显示最多6位小数
+                return num.toFixed(6).replace(/\.?0+$/, '');
+            }
+            
+            // 更新计算器显示
+            function updateCalculatorDisplay() {
+                calculatorCurrent.textContent = formatDisplayNumber(calculatorDisplayValue);
+                calculatorHistory.textContent = calculatorHistoryValue;
+            }
+        }
+        
+        // 初始化事件监听
+        function initEventListeners() {
+            addBtn.addEventListener('click', addNewRow);
+            exportBtn.addEventListener('click', exportToExcel);
+            importBtn.addEventListener('click', () => fileInput.click());
+            saveBtn.addEventListener('click', saveData);
+            
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    importFromExcel(this.files[0]);
+                    this.value = ''; // 重置文件输入
+                }
+            });
+            
+            // 绑定排序事件
+            dateHeader.addEventListener('click', toggleDateSort);
+            sellAmountHeader.addEventListener('click', toggleSellAmountSort);
+            
+            // 绑定筛选事件
+            customerFilter.addEventListener('change', applyFilter);
+            productFilter.addEventListener('change', applyFilter);
+            clearFilterBtn.addEventListener('click', clearFilter);
+            
+            // 初始化计算器
+            initCalculator();
+        }
+        
+        // 初始化应用
+        function initApp() {
+            // 更新筛选器选项
+            updateFilterOptions();
+            
+            renderTable();
+            initEventListeners();
+            updateSortIndicators();
+            
+            // 检查是否有已保存的数据
+            if (orders.length > 0) {
+                showToast(`已加载 ${orders.length} 条订单记录，默认按日期降序排列`);
+            } else {
+                showToast('欢迎使用订单利润管理系统，点击"新增"按钮开始添加订单');
+            }
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // 监听页面离开前保存数据
+        window.addEventListener('beforeunload', function() {
+            updateOrdersFromTable();
+            localStorage.setItem('orderProfitData', JSON.stringify(orders));
+        });
+    </script>
+</body>
+</html>
+
