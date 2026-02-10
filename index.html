@@ -1870,10 +1870,11 @@
     </script>
 
 <style>
-.cloud-addon-panel{position:fixed;right:16px;top:50px;bottom:auto;z-index:2147483647;font-family:sans-serif}
+.cloud-addon-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:sans-serif}
 .cloud-addon-toggle{width:56px;height:56px;border-radius:16px;background:#111827;color:#fff;
 display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
-.cloud-addon-card{position:fixed;right:16px;top:120px;bottom:auto;width:260px;background:#fff;border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
+.cloud-addon-card{position:fixed;right:20px;bottom:90px;width:260px;background:#fff;
+border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
 .cloud-addon-card button{width:100%;margin:6px 0;padding:10px;border-radius:12px;
 border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
@@ -2622,8 +2623,6 @@ const btnRefresh = document.getElementById("adminRefresh");
 })();
 </script>
 
-
-
 <script>
 /* === Login modal viewport-centering patch (handles mobile keyboard) === */
 (function(){
@@ -2713,17 +2712,65 @@ const btnRefresh = document.getElementById("adminRefresh");
 })();
 </script>
 
-</body>
-</html>
-
-
-
-
-
 
 <script>
+/* === Cloud button hard-fix: keep it truly fixed on viewport (no transform math, no style observers) ===
+   - Avoids infinite loops / freezes
+   - Does NOT touch login/cloud business logic
+   - Does NOT wrap the ☁️ DOM (only re-parents to <body> to escape any transformed/scroll containers)
+*/
+(function(){
+  function applyCloudFixed(){
+    const panel = document.querySelector('.cloud-addon-panel');
+    const card  = document.querySelector('.cloud-addon-card');
+    if(!panel) return false;
 
+    // Re-parent to body to avoid "position:fixed inside transformed ancestor" behaving like absolute.
+    if(panel.parentElement !== document.body) document.body.appendChild(panel);
+    if(card && card.parentElement !== document.body) document.body.appendChild(card);
 
+    // Force fixed placement (top-right)
+    panel.style.setProperty('position','fixed','important');
+    panel.style.setProperty('top','50px','important');
+    panel.style.setProperty('right','16px','important');
+    panel.style.setProperty('bottom','auto','important');
+    panel.style.setProperty('left','auto','important');
+    panel.style.setProperty('transform','none','important');
+    panel.style.setProperty('margin','0','important');
+    panel.style.setProperty('z-index','2147483647','important');
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    if(card){
+      card.style.setProperty('position','fixed','important');
+      card.style.setProperty('top','120px','important'); // just below the button
+      card.style.setProperty('right','16px','important');
+      card.style.setProperty('bottom','auto','important');
+      card.style.setProperty('left','auto','important');
+      card.style.setProperty('transform','none','important');
+      card.style.setProperty('margin','0','important');
+      card.style.setProperty('z-index','2147483647','important');
+    }
+    return true;
+  }
 
+  // 1) Try immediately + on load
+  if(document.readyState === 'complete' || document.readyState === 'interactive'){
+    applyCloudFixed();
+  }else{
+    document.addEventListener('DOMContentLoaded', applyCloudFixed, { once:true });
+  }
+
+  // 2) Watch ONLY for node insertion (no watching style/attrs to avoid loops)
+  const mo = new MutationObserver(function(){
+    if(applyCloudFixed()) mo.disconnect();
+  });
+  mo.observe(document.documentElement, { childList:true, subtree:true });
+
+  // 3) Re-assert on user-driven layout changes (lightweight; no loops)
+  const reapply = () => requestAnimationFrame(applyCloudFixed);
+  window.addEventListener('scroll', reapply, { passive:true });
+  window.addEventListener('resize', reapply, { passive:true });
+})();
+</script>
+
+</body>
+</html>
