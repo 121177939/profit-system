@@ -1,4 +1,28 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ======== 域名统一（避免 www/非www 导致 localStorage 登录态不共享） ======== */
+(function(){
+  try{
+    if(location.hostname === 'liruna.icu'){
+      location.replace('https://www.liruna.icu' + location.pathname + location.search + location.hash);
+    }
+  }catch(e){}
+})();
+
+/* ======== Supabase 初始化（不触发网络请求） ======== */
+(function(){
+  try{
+    window.SUPABASE_URL = 'https://yqsjkdndasbdfmjwahwk.supabase.co';
+    window.SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
+    if(window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY){
+      window.__supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, {
+        auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: false }
+      });
+    }
+  }catch(e){}
+})();
+</script>
+
 ﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1879,11 +1903,30 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
   // 供外挂登录按钮调用（不自动触发任何业务）
   window.__setLoginState = function(v){
     window.__isLoggedIn = !!v;
+    try{
+      localStorage.setItem("__LOGIN_STATE__", window.__isLoggedIn ? "1" : "0");
+      if(window.__isLoggedIn){
+        if(window.__currentUserEmail) localStorage.setItem("__LOGIN_EMAIL__", window.__currentUserEmail);
+      }else{
+        localStorage.removeItem("__LOGIN_EMAIL__");
+      }
+    }catch(e){}
     applyGate();
   };
 
   // 初始：未登录
   applyGate();
+
+// 刷新恢复：只读本地标记，不触发任何 Supabase 请求
+  try{
+    const s = localStorage.getItem("__LOGIN_STATE__");
+    const em = (localStorage.getItem("__LOGIN_EMAIL__")||"").trim();
+    if(s === "1" && em){
+      window.__currentUserEmail = em;
+      window.__setLoginState(true);
+    }
+  }catch(e){}
+
 })();
 </script>
 
@@ -1967,9 +2010,22 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 
 <script>
-/* ======== 官方地基 API：云端快照（手动触发，整包覆盖） ======== */
+/* ======== 官方地基 API：云端快照（修正版：对齐 orders / localStorage / upsert） ======== */
 (function(){
   function getClient(){ return window.__supa || null; }
+  const LS_KEY = 'orderProfitData';
+
+  function getOrders(){
+    try{ return (typeof orders !== 'undefined') ? orders : (JSON.parse(localStorage.getItem(LS_KEY))||[]); }
+    catch(e){ return []; }
+  }
+  function setOrders(next){
+    try{
+      if(typeof orders !== 'undefined'){ orders = Array.isArray(next) ? next : []; }
+      localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(next)?next:[]));
+    }catch(e){}
+    if(typeof render === 'function') render();
+  }
 
   window.saveSnapshotToCloud = async function saveSnapshotToCloud(){
     if(!window.__isLoggedIn){ alert('请先登录'); return; }
@@ -1981,10 +2037,12 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
     const { data:u, error:ue } = await client.auth.getUser();
     if(ue || !u?.user){ alert('无法获取用户'); return; }
 
+    const payload = { id: u.user.id, data: getOrders() };
+
+    // 用 upsert：不存在就创建，存在就覆盖（避免 update 0 行“成功但没变化”）
     const { error } = await client
       .from('app_state_user')
-      .update({ data: window.orders })
-      .eq('id', u.user.id);
+      .upsert(payload, { onConflict: 'id' });
 
     if(error){ alert('保存失败：' + error.message); return; }
     alert('已保存到云端');
@@ -2003,15 +2061,14 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       .from('app_state_user')
       .select('data')
       .eq('id', u.user.id)
-      .single();
+      .maybeSingle();
 
     if(error){ alert('拉取失败：' + error.message); return; }
-    if(!data){ alert('云端暂无数据'); return; }
+    if(!data || data.data == null){ alert('云端暂无数据'); return; }
 
     if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
 
-    window.orders = data.data;
-    if(typeof render === 'function') render();
+    setOrders(data.data);
     alert('已从云端拉取');
   };
 })();
@@ -2405,95 +2462,4 @@ with check (
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-/* ======== 正式登录（邮箱+密码） ======== */
-(function(){
-  const SUPABASE_URL = 'https://yqsjkdndasbdfmjwahwk.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
-  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
-  window.__supa = client;
 
-  // 简单登录框
-  function openLogin(){
-    const email = prompt('请输入邮箱');
-    if(!email) return;
-    const pwd = prompt('请输入密码');
-    if(!pwd) return;
-    client.auth.signInWithPassword({email,password:pwd}).then(r=>{
-      if(r.error){alert('登录失败:'+r.error.message);return;}
-      __setLoginState(true);
-      alert('登录成功');
-    });
-  }
-
-  function logout(){
-    client.auth.signOut();
-    __setLoginState(false);
-    alert('已退出');
-  }
-
-  document.querySelectorAll('button').forEach(b=>{
-    const t=b.innerText||'';
-    if(t.includes('登录')) b.onclick=openLogin;
-    if(t.includes('退出')) b.onclick=logout;
-  });
-})();
-</script>
-
-
-<script>
-/* ======== Step 3 云端保存 / 拉取（正式登录整合版） ======== */
-(function(){
-  function getClient(){
-    return window.__supa || null;
-  }
-
-  async function cloudSave(){
-    if(!window.__isLoggedIn){ alert('请先登录'); return; }
-    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
-    const client=getClient();
-    if(!client){ alert('云端未初始化'); return; }
-
-    const { data: u, error: ue } = await client.auth.getUser();
-    if(ue||!u?.user){ alert('无法获取用户'); return; }
-
-    const { error } = await client
-      .from('app_state_user')
-      .update({ data: window.orders })
-      .eq('id', u.user.id);
-
-    if(error){ alert('保存失败：'+error.message); return; }
-    alert('已保存到云端');
-  }
-
-  async function cloudLoad(){
-    if(!window.__isLoggedIn){ alert('请先登录'); return; }
-    const client=getClient();
-    if(!client){ alert('云端未初始化'); return; }
-
-    const { data: u, error: ue } = await client.auth.getUser();
-    if(ue||!u?.user){ alert('无法获取用户'); return; }
-
-    const { data, error } = await client
-      .from('app_state_user')
-      .select('data')
-      .eq('id', u.user.id)
-      .single();
-
-    if(error){ alert('拉取失败：'+error.message); return; }
-    if(!data){ alert('云端暂无数据'); return; }
-    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
-
-    window.orders = data.data;
-    if(typeof render==='function') render();
-    alert('已从云端拉取');
-  }
-
-  // bind by data-action if exists, else by text
-  document.querySelectorAll('button').forEach(btn=>{
-    const t=(btn.innerText||'');
-    if(t.includes('保存到云端')||t.includes('保存云端')||t.includes('保存')) btn.addEventListener('click', cloudSave);
-    if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
-  });
-})();
-</script>
