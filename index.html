@@ -603,6 +603,64 @@
   #adminPanel .admin-action-row{gap:10px;}
 }
 
+
+/* === Login modal centering + button unification (mobile keyboard friendly) === */
+.login-box{
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(92vw, 360px) !important;
+  max-height: calc(100vh - 90px) !important;
+  overflow: auto !important;
+  z-index: 999999 !important;
+  background: #fff !important;
+  border-radius: 16px !important;
+  padding: 14px 14px 12px !important;
+  box-shadow: 0 18px 55px rgba(0,0,0,.22) !important;
+}
+
+/* backdrop */
+#loginBackdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(2px);
+  z-index: 999998;
+  display: none;
+}
+
+/* inputs a bit tighter */
+.login-field input{
+  height: 44px;
+  border-radius: 12px;
+}
+
+/* actions row: same height, same radius, equal width */
+.login-actions{
+  display:flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.login-actions button{
+  flex: 1;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 15px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+.login-btn-primary{
+  background:#fff;
+  color:#111827;
+  border:1px solid rgba(17,24,39,.25);
+}
+.login-btn-ghost{
+  background:#fff;
+  color:#111827;
+  border:1px solid rgba(17,24,39,.25);
+}
+
 </style>
 </head>
 <body>
@@ -1819,11 +1877,59 @@ display:flex;align-items:center;justify-content:center;font-size:22px;cursor:poi
 border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
 .cloud-addon-card button{width:100%;margin:6px 0;padding:10px;border-radius:12px;
 border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
+
+/* 登录盒子（更美观） */
+.login-box{margin-top:8px;padding:10px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc}
+.login-title{font-weight:800;font-size:14px;margin-bottom:8px;color:#111827}
+.login-field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.login-field label{font-size:12px;color:#6b7280}
+.login-field input{height:36px;border-radius:10px;border:1px solid #e5e7eb;padding:0 10px;font-size:14px;outline:none;background:#fff}
+.login-field input:focus{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(147,197,253,.35)}
+.login-actions{display:flex;gap:8px;margin-top:6px}
+.login-actions button{flex:1;height:34px;border-radius:10px;font-weight:800;cursor:pointer}
+.login-btn-primary{
+  background:#fff;
+  color:#111827;
+  border:1px solid rgba(17,24,39,.25);
+}
+.login-btn-ghost{background:#fff;color:#111827;border:1px solid #e5e7eb}
+.login-msg{margin-top:8px;font-size:12px;color:#b91c1c;line-height:1.4}
+
+/* 管理员三件套：小尺寸横排 */
+#adminTools{margin-top:10px !important;}
+#adminPanel .admin-action-row, .admin-action-row{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
+#adminPanel .admin-action-row .admin-btn, .admin-action-row .admin-btn{
+  flex:1;height:36px;padding:0 8px;font-size:14px;border-radius:10px;white-space:nowrap;margin:0 !important;
+}
+.admin-btn-create{background:#1f2937;color:#fff;border:0}
+.admin-btn-reset{background:#b91c1c;color:#fff;border:0}
+.admin-btn-delete{background:#fff;color:#b91c1c;border:1px solid #b91c1c}
+
+/* 面板里的按钮整体更紧凑一点 */
+.cloud-addon-card{width:280px;}
+.cloud-addon-card button{padding:9px 10px;font-size:14px;border-radius:12px}
 </style>
 
+<div id="loginBackdrop"></div>
 <div class="cloud-addon-panel">
   <div class="cloud-addon-card" id="addon-card">
     <button id="btnCloudLogin">🔐 登录</button>
+    <div id="loginBox" class="login-box" style="display:none">
+      <div class="login-title">登录云端</div>
+      <div class="login-field">
+        <label>邮箱</label>
+        <input id="loginEmail" type="email" placeholder="例如：123456@qq.com" autocomplete="username" />
+      </div>
+      <div class="login-field">
+        <label>密码</label>
+        <input id="loginPassword" type="password" placeholder="请输入密码" autocomplete="current-password" />
+      </div>
+      <div class="login-actions">
+        <button id="loginSubmit" class="login-btn-primary">登录</button>
+        <button id="loginCancel" class="login-btn-ghost">取消</button>
+      </div>
+      <div id="loginMsg" class="login-msg" style="display:none"></div>
+    </div>
     <button id="btnCloudLogout">🚪 退出</button>
     <button id="btnCloudSave">⬆️ 保存到云端</button>
     <button id="btnCloudLoad">⬇️ 从云端拉取</button>
@@ -1840,9 +1946,9 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
       <div id="adminTools" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
         <div class="admin-action-row">
-<button id="adminCreateUserBtn" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
-        <button id="adminResetPwdBtn" style="flex:1;min-width:140px;background:#b91c1c;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">重置密码</button>
-        <button id="adminDeleteUserBtn" style="flex:1;min-width:140px;background:#fff;color:#c0392b;border:1px solid #c0392b;border-radius:10px;padding:12px 10px;font-size:16px;">删除账号</button>
+  <button id="adminCreateUserBtn" class="admin-btn admin-btn-create">新建账号</button>
+  <button id="adminResetPwdBtn" class="admin-btn admin-btn-reset">重置密码</button>
+  <button id="adminDeleteUserBtn" class="admin-btn admin-btn-delete">删除账号</button>
 </div>
       </div>
 
@@ -2354,15 +2460,56 @@ with check (
     });
   }
 
-  async function doLogin(){
+  
+  /* ===== 登录UI（不自动请求，仅按钮触发） ===== */
+  function toggleLoginBox(show){
+    const box = document.getElementById("loginBox");
+    if(!box) return;
+    const isOpen = box.style.display === "block";
+    const shouldOpen = (show===undefined)?(!isOpen):!!show;
+    box.style.display = shouldOpen ? "block" : "none";
+    if(shouldOpen){
+      const emailEl = document.getElementById("loginEmail");
+      const pwEl = document.getElementById("loginPassword");
+      if(emailEl && !emailEl.value) emailEl.value = (getCurrentEmail()||"");
+      setTimeout(()=>{ (emailEl||pwEl)?.focus?.(); }, 30);
+    } else {
+      hideLoginMsg();
+    }
+  }
+  function hideLoginBox(){ toggleLoginBox(false); }
+
+  function showLoginMsg(msg){
+    const el = document.getElementById("loginMsg");
+    if(!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+  function hideLoginMsg(){
+    const el = document.getElementById("loginMsg");
+    if(!el) return;
+    el.style.display = "none";
+    el.textContent = "";
+  }
+  function setLoginLoading(isLoading){
+    const btn = document.getElementById("loginSubmit");
+    if(btn){
+      btn.disabled = !!isLoading;
+      btn.textContent = isLoading ? "登录中…" : "登录";
+    }
+  }
+
+async function doLogin(email, pw){
     const client = getClient();
-    if(!client){ alert("Supabase 未初始化"); return; }
-    const email = (prompt("请输入邮箱：")||"").trim();
-    if(!email) return;
-    const pw = (prompt("请输入密码：")||"").trim();
-    if(!pw) return;
+    if(!client){ showLoginMsg("Supabase 未初始化"); return; }
+    email = (email||"").trim();
+    pw = (pw||"").trim();
+    if(!email){ showLoginMsg("请输入邮箱"); return; }
+    if(!pw){ showLoginMsg("请输入密码"); return; }
 
     try {
+      setLoginLoading(true);
+      hideLoginMsg();
       const { data, error } = await client.auth.signInWithPassword({ email, password: pw });
       if(error) throw error;
       const user = data?.user;
@@ -2370,9 +2517,12 @@ with check (
       window.__setLoginState(true);
       refreshAdminVisibility();
       await checkProfileAndMaybeKick(user);
+      hideLoginBox();
       alert("登录成功");
     } catch(e) {
-      alert("登录失败：" + (e?.message || e));
+      showLoginMsg("登录失败：" + (e?.message || e));
+    } finally{
+      setLoginLoading(false);
     }
   }
 
@@ -2392,7 +2542,7 @@ with check (
     const btnLoad = document.getElementById("btnCloudLoad");
     const btnAdmin = document.getElementById("btnCloudAdmin");
 
-    if(btnLogin) btnLogin.onclick = doLogin;
+    if(btnLogin) btnLogin.onclick = ()=>toggleLoginBox(true);
     if(btnLogout) btnLogout.onclick = doLogout;
     if(btnSave) btnSave.onclick = ()=>window.saveSnapshotToCloud && window.saveSnapshotToCloud();
     if(btnLoad) btnLoad.onclick = ()=>window.loadSnapshotFromCloud && window.loadSnapshotFromCloud();
@@ -2402,7 +2552,16 @@ with check (
       showAdminUI();
     };
 
-    const btnRefresh = document.getElementById("adminRefresh");
+    
+    const loginSubmit = document.getElementById("loginSubmit");
+    const loginCancel = document.getElementById("loginCancel");
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+
+    if(loginSubmit) loginSubmit.onclick = ()=>doLogin(loginEmail?.value, loginPassword?.value);
+    if(loginCancel) loginCancel.onclick = ()=>hideLoginBox();
+    if(loginPassword) loginPassword.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ doLogin(loginEmail?.value, loginPassword?.value); } });
+const btnRefresh = document.getElementById("adminRefresh");
     if(btnRefresh) btnRefresh.onclick = ()=>loadAdminList();
 
     const btnCreate = document.getElementById("adminCreateUserBtn");
@@ -2461,6 +2620,116 @@ with check (
   }
 
   document.addEventListener("DOMContentLoaded", bind);
+})();
+</script>
+
+<script>
+
+/* === cloud button reposition patch (top-right + 30px) ===
+   Keep v15k mechanism: do not wrap DOM, just append translate on top of final transform.
+*/
+(function () {
+  function applyTopRightOffset(node) {
+    // Base inline transform after v15k placement
+    const base = node.dataset.__cloudBaseTransform || node.style.transform || getComputedStyle(node).transform || '';
+    // Measure current rect
+    const rect = node.getBoundingClientRect();
+    const targetTop = 50;      // 30px from top
+    const targetRightGap = 16; // 16px from right edge
+
+    const dx = (window.innerWidth - targetRightGap) - rect.right;
+    const dy = targetTop - rect.top;
+
+    const baseClean = (base && base !== 'none') ? base : '';
+    node.style.transform = baseClean + ` translate(${dx}px, ${dy}px)`;
+  }
+
+  // Wrap v15k apply function if present
+  const orig = window.__applyCloudTransform;
+  if (typeof orig === 'function') {
+    window.__applyCloudTransform = function (node) {
+      orig(node);
+      // capture base inline transform produced by orig (avoid stacking)
+      node.dataset.__cloudBaseTransform = node.style.transform || '';
+      requestAnimationFrame(() => applyTopRightOffset(node));
+    };
+  } else {
+    // Fallback: observe for the cloud button and apply once
+    const mo = new MutationObserver(() => {
+      const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
+      if (!btn) return;
+      mo.disconnect();
+      requestAnimationFrame(() => applyTopRightOffset(btn));
+      window.addEventListener('resize', () => applyTopRightOffset(btn), { passive: true });
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  // Also re-apply on resize for safety (only when button exists)
+  window.addEventListener('resize', () => {
+    const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
+    if (btn) requestAnimationFrame(() => applyTopRightOffset(btn));
+  }, { passive: true });
+})();
+
+</script>
+
+<script>
+/* === Login modal viewport-centering patch (handles mobile keyboard) === */
+(function(){
+  const box = document.getElementById('loginBox');
+  const backdrop = document.getElementById('loginBackdrop');
+  if(!box || !backdrop) return;
+
+  function centerBox(){
+    // use VisualViewport when available to avoid keyboard pushing things around
+    const vv = window.visualViewport;
+    if(vv){
+      const cx = (vv.width / 2);
+      const cy = (vv.height / 2) + vv.offsetTop;
+      box.style.left = (cx) + 'px';
+      box.style.top  = (cy - 30) + 'px';
+      box.style.transform = 'translate(-50%, -50%)';
+    }else{
+      box.style.left = '50%';
+      box.style.top  = '50%';
+      box.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+
+  function showBackdrop(){
+    backdrop.style.display = 'block';
+  }
+  function hideBackdrop(){
+    backdrop.style.display = 'none';
+  }
+
+  // Detect show/hide by observing display style changes
+  const mo = new MutationObserver(() => {
+    const visible = box.style.display !== 'none';
+    if(visible){
+      showBackdrop();
+      centerBox();
+      setTimeout(centerBox, 0);
+    }else{
+      hideBackdrop();
+    }
+  });
+  mo.observe(box, { attributes:true, attributeFilter:['style','class'] });
+
+  // Clicking backdrop cancels login UI
+  backdrop.addEventListener('click', () => {
+    const cancel = document.getElementById('loginCancel');
+    if(cancel) cancel.click();
+    else box.style.display = 'none';
+  });
+
+  // Keep centered while keyboard opens/closes
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', centerBox, { passive:true });
+    window.visualViewport.addEventListener('scroll', centerBox, { passive:true });
+  }
+  window.addEventListener('resize', centerBox, { passive:true });
 })();
 </script>
 
