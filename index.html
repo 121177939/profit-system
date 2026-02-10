@@ -595,7 +595,15 @@
                 font-size: 14px;
             }
         }
-    </style>
+    
+/* ===== 管理员面板：三按钮并排 ===== */
+#adminPanel .admin-action-row{display:flex; gap:12px; align-items:stretch;}
+#adminPanel .admin-action-row button{flex:1; margin:0 !important;}
+@media (max-width:420px){
+  #adminPanel .admin-action-row{gap:10px;}
+}
+
+</style>
 </head>
 <body>
 
@@ -1134,7 +1142,10 @@
             // 新订单添加到数组开头
             orders.unshift(newOrder);
             
-            // 确保按日期降序排序
+            
+            // 立即持久化（避免新增空行在云快照/刷新后丢失）
+            try{ localStorage.setItem('orderProfitData', JSON.stringify(orders)); }catch(e){}
+// 确保按日期降序排序
             dateSortState = 'desc';
             sellAmountSortState = 'none';
             
@@ -1828,9 +1839,11 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       </div>
 
       <div id="adminTools" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-        <button id="adminCreateUserBtn" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
+        <div class="admin-action-row">
+<button id="adminCreateUserBtn" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
         <button id="adminResetPwdBtn" style="flex:1;min-width:140px;background:#b91c1c;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">重置密码</button>
         <button id="adminDeleteUserBtn" style="flex:1;min-width:140px;background:#fff;color:#c0392b;border:1px solid #c0392b;border-radius:10px;padding:12px 10px;font-size:16px;">删除账号</button>
+</div>
       </div>
 
       <div style="overflow:auto;max-height:220px;margin-top:8px">
@@ -2024,7 +2037,9 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       if(typeof orders !== 'undefined'){ orders = Array.isArray(next) ? next : []; }
       localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(next)?next:[]));
     }catch(e){}
-    if(typeof render === 'function') render();
+    try{ if(typeof updateFilterOptions==='function') updateFilterOptions(); }catch(e){}
+    try{ if(typeof renderTable==='function') renderTable(); }catch(e){}
+    try{ if(typeof updateTotalProfit==='function') updateTotalProfit(); }catch(e){}
   }
 
   window.saveSnapshotToCloud = async function saveSnapshotToCloud(){
