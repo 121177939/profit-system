@@ -2623,56 +2623,7 @@ const btnRefresh = document.getElementById("adminRefresh");
 })();
 </script>
 
-<script>
 
-/* === cloud button reposition patch (top-right + 30px) ===
-   Keep v15k mechanism: do not wrap DOM, just append translate on top of final transform.
-*/
-(function () {
-  function applyTopRightOffset(node) {
-    // Base inline transform after v15k placement
-    const base = node.dataset.__cloudBaseTransform || node.style.transform || getComputedStyle(node).transform || '';
-    // Measure current rect
-    const rect = node.getBoundingClientRect();
-    const targetTop = 50;      // 30px from top
-    const targetRightGap = 16; // 16px from right edge
-
-    const dx = (window.innerWidth - targetRightGap) - rect.right;
-    const dy = targetTop - rect.top;
-
-    const baseClean = (base && base !== 'none') ? base : '';
-    node.style.transform = baseClean + ` translate(${dx}px, ${dy}px)`;
-  }
-
-  // Wrap v15k apply function if present
-  const orig = window.__applyCloudTransform;
-  if (typeof orig === 'function') {
-    window.__applyCloudTransform = function (node) {
-      orig(node);
-      // capture base inline transform produced by orig (avoid stacking)
-      node.dataset.__cloudBaseTransform = node.style.transform || '';
-      requestAnimationFrame(() => applyTopRightOffset(node));
-    };
-  } else {
-    // Fallback: observe for the cloud button and apply once
-    const mo = new MutationObserver(() => {
-      const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
-      if (!btn) return;
-      mo.disconnect();
-      requestAnimationFrame(() => applyTopRightOffset(btn));
-      window.addEventListener('resize', () => applyTopRightOffset(btn), { passive: true });
-    });
-    mo.observe(document.documentElement, { childList: true, subtree: true });
-  }
-
-  // Also re-apply on resize for safety (only when button exists)
-  window.addEventListener('resize', () => {
-    const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
-    if (btn) requestAnimationFrame(() => applyTopRightOffset(btn));
-  }, { passive: true });
-})();
-
-</script>
 
 <script>
 /* === Login modal viewport-centering patch (handles mobile keyboard) === */
@@ -2764,124 +2715,86 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 
-<style id="appSmoothPatch">
-/* ===== App-like smoothness patch (safe, no business logic changes) ===== */
-:root{
-  --app-ease: cubic-bezier(.2,.8,.2,1);
-}
-
-/* Global subtle transition (avoid heavy layout thrash) */
-button, .cloud-addon-toggle, .cloud-addon-card, .login-box, input, textarea, select{
-  transition: transform 180ms var(--app-ease), opacity 180ms var(--app-ease), box-shadow 180ms var(--app-ease), background-color 180ms var(--app-ease), border-color 180ms var(--app-ease);
-}
-button:active, .cloud-addon-toggle:active{
-  transform: translateY(1px) scale(0.98);
-}
-
-/* Ripple container */
-.btn-ripple{ position: relative; overflow: hidden; }
-.btn-ripple .ripple{
-  position:absolute; border-radius:999px; transform: translate(-50%,-50%);
-  pointer-events:none; opacity:0.25;
-  animation: ripple 520ms var(--app-ease) forwards;
-}
-@keyframes ripple{
-  from{ width:0; height:0; opacity:0.28; }
-  to{ width:520px; height:520px; opacity:0; }
-}
-
-/* App-like page enter */
-body{
-  animation: pageIn 260ms var(--app-ease) both;
-}
-@keyframes pageIn{
-  from{ opacity:0; transform: translateY(6px); }
-  to{ opacity:1; transform: translateY(0); }
-}
-
-/* ===== Fix: Cloud button/panel fixed at top-right (no JS, no loops) ===== */
-/* Use !important to win over inline styles / transforms */
-.cloud-addon-panel{
-  position: fixed !important;
-  top: 50px !important;
-  right: 16px !important;
-  left: auto !important;
-  bottom: auto !important;
-  transform: none !important;
-  z-index: 2147483647 !important;
-}
-
-/* Keep the card near the button */
-.cloud-addon-card{
-  position: fixed !important;
-  top: 120px !important;
-  right: 16px !important;
-  left: auto !important;
-  bottom: auto !important;
-  transform: none !important;
-}
-
-/* Reduce motion */
-@media (prefers-reduced-motion: reduce){
-  *{ animation: none !important; transition: none !important; }
-}
+<style id="cloud-pin-css">
+/* Safe cloud pin: keep it fixed top-right, never follow scroll */
+.cloud-addon-panel{ position:fixed !important; top:50px !important; right:16px !important; bottom:auto !important; left:auto !important; transform:none !important; }
+.cloud-addon-card{ position:fixed !important; right:16px !important; left:auto !important; bottom:auto !important; transform:none !important; }
 </style>
 
-<script id="appSmoothPatchJS">
-/* ===== App-like interactions patch (safe) ===== */
+
+<script id="cloud-pin-js">
 (function(){
-  // Add ripple to clickable buttons without touching their onclick logic.
-  function mark(el){
-    if(!el || el.dataset.__rippleReady === '1') return;
-    el.dataset.__rippleReady='1';
-    el.classList.add('btn-ripple');
-    el.addEventListener('click', function(e){
-      // Avoid ripple on disabled elements
-      if(el.disabled) return;
-      const rect = el.getBoundingClientRect();
-      const x = (e.clientX || (rect.left + rect.width/2)) - rect.left;
-      const y = (e.clientY || (rect.top + rect.height/2)) - rect.top;
+  const TARGET_TOP = 50;
+  const TARGET_RIGHT = 16;
+  const GAP = 10;
 
-      const span = document.createElement('span');
-      span.className='ripple';
-      span.style.left = x + 'px';
-      span.style.top  = y + 'px';
-      // Use current text color as ripple color (subtle)
-      const cs = getComputedStyle(el);
-      span.style.background = cs.color || 'rgba(0,0,0,.25)';
-      el.appendChild(span);
-      setTimeout(()=>{ try{ span.remove(); }catch(_){} }, 700);
-    }, {passive:true});
+  let rafId = 0;
+  function pin(){
+    rafId = 0;
+    const panel = document.querySelector('.cloud-addon-panel');
+    const card  = document.querySelector('.cloud-addon-card');
+    if(panel){
+      // Force fixed, top-right
+      panel.style.position = 'fixed';
+      panel.style.top = TARGET_TOP + 'px';
+      panel.style.right = TARGET_RIGHT + 'px';
+      panel.style.left = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.transform = 'none';
+      panel.style.zIndex = panel.style.zIndex || '2147483647';
+    }
+    if(card){
+      card.style.position = 'fixed';
+      card.style.right = TARGET_RIGHT + 'px';
+      card.style.left = 'auto';
+      card.style.bottom = 'auto';
+      card.style.transform = 'none';
+
+      // Place card under the panel button when visible; otherwise keep a reasonable default
+      const p = panel || document.querySelector('#addon-toggle') || document.querySelector('.cloud-addon-toggle');
+      if(p){
+        const rect = p.getBoundingClientRect();
+        const top = Math.round(rect.bottom + GAP);
+        card.style.top = top + 'px';
+      }else{
+        card.style.top = (TARGET_TOP + 70) + 'px';
+      }
+    }
   }
 
-  function scan(){
-    // Buttons inside cloud panel
-    document.querySelectorAll('button, .cloud-addon-toggle').forEach(mark);
+  function schedulePin(){
+    if(rafId) return;
+    rafId = requestAnimationFrame(pin);
   }
 
-  // Initial scan and observe additions (childList only; no attribute observers -> no loops)
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', scan, {once:true});
-  }else{
-    scan();
-  }
+  // Run on load, and on user interactions that commonly cause the jump
+  document.addEventListener('DOMContentLoaded', schedulePin);
+  window.addEventListener('load', schedulePin);
+  window.addEventListener('resize', schedulePin, {passive:true});
+  window.addEventListener('scroll', schedulePin, {passive:true, capture:true});
 
-  const mo = new MutationObserver(()=>scan());
-  mo.observe(document.documentElement, {subtree:true, childList:true});
+  // Also run shortly after clicks (original scripts may reposition after a click)
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!t) return;
+    if(t.closest && (t.closest('.cloud-addon-panel') || t.closest('.cloud-addon-card') || t.id==='addon-toggle')){
+      schedulePin();
+      setTimeout(schedulePin, 0);
+      setTimeout(schedulePin, 80);
+    }
+  }, true);
+
+  // Low-frequency watchdog to correct occasional drift without MutationObserver loops
+  let ticks = 0;
+  const timer = setInterval(()=>{
+    schedulePin();
+    ticks++;
+    if(ticks > 600){ // ~10 minutes then stop
+      clearInterval(timer);
+    }
+  }, 1000);
 })();
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-<script>
-
-
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
