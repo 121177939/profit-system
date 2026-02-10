@@ -623,8 +623,9 @@ body::before {
 </style>
 
 
-<style id="cloud-no-redline-v15j">
-body::before { content: none !important; display:none !important; }
+<style id="v15k-no-redline">
+/* 强制移除任何历史调试红线/红框 */
+body::before { content: none !important; display: none !important; }
 *[style*="outline: 2px dashed red"], *[style*="outline:2px dashed red"] { outline: none !important; }
 </style>
 
@@ -2728,48 +2729,327 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 
-<style id="cloud-v15d-force-small">
-/* v15d：命中真实 ☁️ 节点后，强制视觉缩小（一定可见） */
-</style>
-
 <script>
 /*
- v15j：
- - 基于你确认“能显示”的 15d 机制：在最终 computed transform 上追加 scale
- - 调到≈14px 观感：font-size 16 + scale 0.85（更接近14且跨浏览器更稳定）
- - 每次应用前剥离旧 scale(...)，避免叠加导致尺寸失控/消失
+ v15k（按你的要求）：
+ - 基线：v15
+ - 机制：完全沿用 v15d 的“读取 computed transform → 追加 scale”的方式（你设备上确认可见）
+ - 目标：等效≈14px：用 BASE_FONT_PX=16 + SCALE=0.85
+ - 额外稳显：识别 ☁️ 元素时更宽松（textContent 含 ☁）
 */
 (function(){
   const BASE_FONT_PX = 16;
   const SCALE = 0.85;
 
-  function apply(el){
-    if (!el) return;
+  function isCloudEl(el){
+    const t = (el.textContent || '').trim();
+    if (t === '☁️' || t === '☁') return true;
+    // 宽松：只要包含云字符（避免前后有不可见字符）
+    if (t.includes('☁')) return true;
+    return false;
+  }
 
-    // 纠偏：每次都覆盖到目标字号（emoji 各浏览器差异，用 scale 收敛）
+  function apply(el){
+    if (!el || el.__cloudScaled14) return;
+    el.__cloudScaled14 = true;
+
+    // 让 emoji 字形稳定些
     el.style.fontSize = BASE_FONT_PX + 'px';
     el.style.lineHeight = '1';
 
-    const cs = getComputedStyle(el);
-    let t = (cs.transform && cs.transform !== 'none') ? cs.transform : '';
+    // v15d 同款：从 computed transform 取“最终定位”，在其后叠加 scale
+    const prev = getComputedStyle(el).transform;
+    const base = (prev && prev !== 'none') ? prev.replace(/scale\([^\)]*\)/g,'').trim() : '';
 
-    // 去掉旧 scale(...)（无论来自哪一版）
-    t = t.replace(/scale\([^\)]*\)/g, '').trim();
-
-    // 追加稳定 scale；若本来无 transform，直接 scale（15d 证明在你那可用）
-    el.style.transform = (t ? (t + ' ') : '') + 'scale(' + SCALE + ')';
+    if (base) {
+      el.style.transform = base + ' scale(' + SCALE + ')';
+    } else {
+      el.style.transform = 'scale(' + SCALE + ')';
+    }
   }
 
   function scan(){
-    document.querySelectorAll('button,div,a').forEach(el=>{
-      const txt = (el.innerText||'').trim();
-      if (txt === '☁️' || txt === '☁') apply(el);
+    document.querySelectorAll('button,div,a,[role="button"]').forEach(el=>{
+      if (isCloudEl(el)) apply(el);
     });
   }
 
   scan();
   const mo = new MutationObserver(scan);
   mo.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+
+
+<script>
+/*
+ v20：接入“管理员”（纯本地、纯 UI，不改 orders/Supabase，不新增自动云端读写）
+ - 管理员入口：长按 ☁️ 1.2s（不影响短按打开☁️面板）
+ - 管理员鉴权：本地 PIN（localStorage.gqb_admin_pin_hash），首次设置；之后需验证
+ - 管理员能力（本地）：
+   1) 强制登录态：__setLoginState(true/false)
+   2) 导出/导入本地快照（不触碰云端；导入不自动保存云端）
+   3) 清理本地数据（谨慎：清 localStorage 中本应用相关键）
+*/
+(function(){
+  const HOLD_MS = 1200;
+  const APP_PREFIX = 'gqb_'; // 仅清理以此开头的 key（避免误伤其他站点/工具）
+  const PIN_KEY = 'gqb_admin_pin_hash';
+
+  function sha256(str){
+    // WebCrypto sha-256
+    const enc = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', enc).then(buf =>
+      Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')
+    );
+  }
+
+  function el(tag, attrs={}, children=[]){
+    const n = document.createElement(tag);
+    Object.entries(attrs).forEach(([k,v])=>{
+      if(k==='style') Object.assign(n.style, v);
+      else if(k==='class') n.className = v;
+      else if(k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    });
+    children.forEach(c=>{
+      if(typeof c === 'string') n.appendChild(document.createTextNode(c));
+      else if(c) n.appendChild(c);
+    });
+    return n;
+  }
+
+  function toast(msg){
+    const t = el('div', { style: {
+      position:'fixed', left:'50%', bottom:'18px', transform:'translateX(-50%)',
+      background:'rgba(0,0,0,.78)', color:'#fff', padding:'10px 12px',
+      borderRadius:'12px', fontSize:'13px', zIndex: 999999, maxWidth:'92%',
+      boxShadow:'0 8px 20px rgba(0,0,0,.25)'
+    }}, [msg]);
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 1600);
+  }
+
+  function openAdminModal(){
+    const overlay = el('div', { style: {
+      position:'fixed', inset:'0', background:'rgba(0,0,0,.42)', zIndex: 999998,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'
+    }});
+
+    const card = el('div', { style: {
+      width:'min(520px, 100%)', background:'#fff', borderRadius:'18px',
+      boxShadow:'0 18px 60px rgba(0,0,0,.28)', overflow:'hidden'
+    }});
+
+    const header = el('div', { style: {
+      padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between',
+      background:'linear-gradient(180deg,#f7f7f9,#ffffff)'
+    }}, [
+      el('div', { style:{fontWeight:'700', fontSize:'15px'}}, ['管理员']),
+      el('button', { style:{
+        border:'none', background:'rgba(0,0,0,.06)', borderRadius:'12px',
+        padding:'8px 10px', cursor:'pointer'
+      }, onclick: ()=>overlay.remove() }, ['关闭'])
+    ]);
+
+    const body = el('div', { style:{padding:'14px 16px'} });
+
+    const pinRow = el('div', { style:{display:'flex', gap:'10px', alignItems:'center', marginBottom:'12px'}});
+    const pinInput = el('input', { type:'password', placeholder:'管理员 PIN', style:{
+      flex:'1', padding:'10px 12px', borderRadius:'12px', border:'1px solid rgba(0,0,0,.14)',
+      fontSize:'14px', outline:'none'
+    }});
+    const pinBtn = el('button', { style:{
+      padding:'10px 12px', borderRadius:'12px', border:'none',
+      background:'#111827', color:'#fff', cursor:'pointer', fontSize:'14px'
+    }}, ['解锁']);
+    pinRow.appendChild(pinInput);
+    pinRow.appendChild(pinBtn);
+
+    const lockedHint = el('div', { style:{fontSize:'12px', color:'rgba(0,0,0,.55)', marginBottom:'10px'}},
+      ['首次使用会要求设置 PIN（仅保存在本机 localStorage）。']);
+
+    const actions = el('div', { style:{
+      display:'grid', gridTemplateColumns:'1fr', gap:'10px', opacity:'0.5', pointerEvents:'none'
+    }});
+
+    function actionBtn(label, desc, onClick, danger=false){
+      const btn = el('button', { style:{
+        textAlign:'left', padding:'12px 12px', borderRadius:'14px',
+        border:'1px solid rgba(0,0,0,.10)', background:'#fff', cursor:'pointer',
+        display:'flex', flexDirection:'column', gap:'4px'
+      }, onclick:onClick });
+      const t = el('div', { style:{fontWeight:'650', color: danger ? '#b91c1c' : '#111827'}}, [label]);
+      const d = el('div', { style:{fontSize:'12px', color:'rgba(0,0,0,.55)'}}, [desc]);
+      btn.appendChild(t); btn.appendChild(d);
+      return btn;
+    }
+
+    // 1) 强制登录态
+    actions.appendChild(actionBtn('强制登录态：已登录', '调用 __setLoginState(true)。不会触发云端任何拉取/保存。', ()=>{
+      if (typeof window.__setLoginState === 'function') { window.__setLoginState(true); toast('已设置为登录态'); }
+      else toast('__setLoginState 不存在');
+    }));
+    actions.appendChild(actionBtn('强制登录态：未登录', '调用 __setLoginState(false)。', ()=>{
+      if (typeof window.__setLoginState === 'function') { window.__setLoginState(false); toast('已设置为未登录'); }
+      else toast('__setLoginState 不存在');
+    }));
+
+    // 2) 导出本地快照（尽量走现有本地导出，如无则导出 localStorage 相关键）
+    actions.appendChild(actionBtn('导出本地快照（JSON）', '仅本地下载，不触碰云端。', ()=>{
+      try{
+        const payload = { type:'localStorage', exportedAt: new Date().toISOString(), data:{} };
+        Object.keys(localStorage).forEach(k=>{
+          // 只导出本应用相关键；如果你希望全导出，可改为 true
+          if (k.startsWith(APP_PREFIX) || k.includes('orders') || k.includes('snapshot') || k.includes('login')) {
+            payload.data[k] = localStorage.getItem(k);
+          }
+        });
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'gqb_local_snapshot.json';
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+        toast('已导出本地快照');
+      } catch(e){
+        console.error(e);
+        toast('导出失败（见控制台）');
+      }
+    }));
+
+    // 3) 导入本地快照（JSON）
+    actions.appendChild(actionBtn('导入本地快照（JSON）', '选择 gqb_local_snapshot.json。导入后需手动刷新页面。', ()=>{
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'application/json';
+      inp.onchange = async () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return;
+        try{
+          const txt = await f.text();
+          const obj = JSON.parse(txt);
+          if (!obj || typeof obj !== 'object' || !obj.data) { toast('文件格式不对'); return; }
+          const keys = Object.keys(obj.data);
+          keys.forEach(k=>{
+            if (typeof obj.data[k] === 'string') localStorage.setItem(k, obj.data[k]);
+          });
+          toast('已导入（建议刷新）');
+        } catch(e){
+          console.error(e);
+          toast('导入失败（见控制台）');
+        }
+      };
+      inp.click();
+    }));
+
+    // 4) 清理本地数据
+    actions.appendChild(actionBtn('清理本地数据（危险）', '删除 localStorage 中以 gqb_ 开头的键。不会触碰云端。', ()=>{
+      const ok = confirm('确认清理本地数据？此操作不可撤销（仅清理以 gqb_ 开头的键）。');
+      if (!ok) return;
+      const keys = Object.keys(localStorage).filter(k=>k.startsWith(APP_PREFIX));
+      keys.forEach(k=>localStorage.removeItem(k));
+      toast('已清理（建议刷新）');
+    }, true));
+
+    body.appendChild(pinRow);
+    body.appendChild(lockedHint);
+    body.appendChild(actions);
+
+    card.appendChild(header);
+    card.appendChild(body);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+
+    async function unlockFlow(){
+      const pin = (pinInput.value||'').trim();
+      if (!pin) { toast('请输入 PIN'); return; }
+
+      const saved = localStorage.getItem(PIN_KEY);
+      const hash = await sha256(pin);
+
+      if (!saved) {
+        // 首次设置
+        localStorage.setItem(PIN_KEY, hash);
+        actions.style.opacity = '1';
+        actions.style.pointerEvents = 'auto';
+        lockedHint.textContent = '已设置并解锁管理员。';
+        toast('管理员已启用');
+        return;
+      }
+
+      if (hash === saved) {
+        actions.style.opacity = '1';
+        actions.style.pointerEvents = 'auto';
+        lockedHint.textContent = '已解锁管理员。';
+        toast('已解锁');
+      } else {
+        toast('PIN 错误');
+      }
+    }
+
+    pinBtn.addEventListener('click', unlockFlow);
+    pinInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') unlockFlow(); });
+  }
+
+  function findCloudButton(){
+    // 尽量命中真实 ☁️ 节点（和你当前稳定方案一致：textContent 含 ☁）
+    const all = document.querySelectorAll('button,div,a,[role="button"]');
+    for (const n of all) {
+      const t = (n.textContent || '').trim();
+      if (t === '☁️' || t === '☁' || t.includes('☁')) return n;
+    }
+    return null;
+  }
+
+  // 长按 ☁️ 打开管理员（不干扰短按）
+  function attachHold(){
+    const btn = findCloudButton();
+    if (!btn || btn.__adminHoldBound) return;
+    btn.__adminHoldBound = true;
+
+    let timer = null;
+    let moved = false;
+    const start = (e)=>{
+      moved = false;
+      // 不阻止短按默认行为；仅在长按触发时阻止
+      timer = setTimeout(()=>{
+        timer = null;
+        // 尝试关闭☁️面板（如果打开），避免挡住管理员
+        try{
+          const panel = document.querySelector('#cloudPanel,.cloud-panel,.cloudPanel,[data-panel="cloud"],[data-cloud-panel]');
+          if (panel && panel.style) panel.style.display = 'none';
+        }catch(_){}
+        openAdminModal();
+      }, HOLD_MS);
+    };
+    const end = ()=>{
+      if (timer) { clearTimeout(timer); timer = null; }
+    };
+    const move = ()=>{
+      moved = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+    };
+
+    btn.addEventListener('touchstart', start, {passive:true});
+    btn.addEventListener('touchend', end);
+    btn.addEventListener('touchcancel', end);
+    btn.addEventListener('touchmove', move, {passive:true});
+
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', end);
+    btn.addEventListener('mouseleave', end);
+
+    // 也支持右键（桌面）
+    btn.addEventListener('contextmenu', (e)=>{ e.preventDefault(); openAdminModal(); });
+  }
+
+  // 由于☁️是动态节点，持续监听直到绑定成功
+  const mo = new MutationObserver(()=>attachHold());
+  mo.observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('load', ()=>setTimeout(attachHold, 50));
+  attachHold();
 })();
 </script>
 
