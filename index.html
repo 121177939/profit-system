@@ -2179,6 +2179,174 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+<script>
+/* ======== v7 UI 清理（仅清 UI，不改地基 API / Supabase / orders） ======== */
+document.addEventListener('DOMContentLoaded', function () {
+  /* 1) 登录态恢复：必须走 __setLoginState(true)，不直接改 __isLoggedIn */
+  try{
+    if (window.__supa && typeof window.__setLoginState === 'function') {
+      window.__supa.auth.getSession().then(function(res){
+        if(res && res.data && res.data.session){
+          window.__setLoginState(true);
+          console.log('[AUTH][v7] session restored via __setLoginState(true)');
+        }
+      });
+    }
+  }catch(e){}
+
+  /* 2) 主界面：彻底移除任何云端保存/拉取入口（按钮/残影/绝对定位空胶囊/右上角空白圆角） */
+  function isInCloudPanel(el){
+    return !!(el && el.closest && el.closest('.cloud-addon-panel, #addon-card, .cloud-snapshot-actions, .cloud-panel, .addon-panel, [data-cloud-panel]'));
+  }
+
+  // 2.1 删除历史遗留容器
+  try{
+    document.querySelectorAll('.top-cloud-actions,.cloud-actions-row,.cloud-snapshot-actions').forEach(function(el){
+      // cloud-snapshot-actions 只允许出现在云面板里
+      if(!isInCloudPanel(el)) el.remove();
+    });
+  }catch(e){}
+
+  // 2.2 删除常见兜底浮层 ID
+  try{
+    ['cloud-force-fab','cloud-csp-fab','cloud-direct-actions','cloud-csp-actions','cloud-fab'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el && !isInCloudPanel(el)) el.remove();
+    });
+  }catch(e){}
+
+  // 2.3 删除“总利润卡片右侧绿/蓝胶囊残影”和其它空按钮
+  function looksLikeGhostPill(btn){
+    try{
+      if(!btn || btn.tagName !== 'BUTTON') return false;
+      if(isInCloudPanel(btn)) return false;
+      var t = (btn.innerText || btn.textContent || '').trim();
+      // v5 里那两个胶囊是空文本按钮
+      var emptyText = (t === '');
+      var cs = window.getComputedStyle(btn);
+      var br = parseFloat(cs.borderRadius || '0');
+      var bg = (cs.backgroundColor || '') + ' ' + (cs.backgroundImage || '');
+      var pillish = br >= 20; // 999px 会非常大
+      // 绿色/蓝色（不精确匹配，避免主题差异）
+      var maybeGreenBlue = /rgb\(\s*(34|59)\s*,\s*(197|130)\s*,\s*(94|246)\s*\)/.test(cs.backgroundColor || '') || /22c55e|3b82f6/i.test(bg);
+      return emptyText && pillish && maybeGreenBlue;
+    }catch(e){
+      return false;
+    }
+  }
+
+  try{
+    document.querySelectorAll('button').forEach(function(btn){
+      if(looksLikeGhostPill(btn)) btn.remove();
+    });
+  }catch(e){}
+
+  // 2.4 删除右上角空白圆角按钮（绝对/固定定位，接近右上角，且无文本/无 aria-label）
+  try{
+    var vw = window.innerWidth || document.documentElement.clientWidth;
+    document.querySelectorAll('button,[role="button"],a').forEach(function(el){
+      if(isInCloudPanel(el)) return;
+      var txt = (el.innerText || el.textContent || '').replace(/\s+/g,'').trim();
+      var aria = (el.getAttribute && (el.getAttribute('aria-label')||'').trim()) || '';
+      if(txt || aria) return;
+
+      var cs = window.getComputedStyle(el);
+      if(!cs) return;
+      if(cs.position !== 'fixed' && cs.position !== 'absolute') return;
+
+      var r = el.getBoundingClientRect();
+      var nearTopRight = (vw - r.right) <= 28 && r.top <= 28;
+      var sizeLikeBtn = r.width >= 18 && r.width <= 90 && r.height >= 18 && r.height <= 90;
+
+      if(nearTopRight && sizeLikeBtn){
+        el.remove();
+      }
+    });
+  }catch(e){}
+
+  /* 3) ☁️ 面板：保存/拉取保持可用（仍调用地基 API），面板只做入口不直连 orders/Supabase */
+  try{
+    var card = document.getElementById('addon-card');
+    if(card){
+      // 移除占位/旧版按钮（只清面板内部“保存/拉取”那两颗）
+      Array.from(card.querySelectorAll('button')).forEach(function(b){
+        var t=(b.innerText||'').trim();
+        if(t.includes('保存到云端') || t.includes('从云端拉取') || t.includes('保存云端') || t==='☁️ 保存到云端' || t==='⬇️ 从云端拉取'){
+          b.remove();
+        }
+      });
+
+      // 避免重复插入
+      if(!card.querySelector('[data-v7-cloud-actions="1"]')){
+        var box=document.createElement('div');
+        box.setAttribute('data-v7-cloud-actions','1');
+        box.style.cssText='margin-top:8px;display:flex;flex-direction:column;gap:8px';
+
+        function mk(text){
+          var b=document.createElement('button');
+          b.type='button';
+          b.textContent=text;
+          return b;
+        }
+        var btnSave = mk('☁️ 保存到云端');
+        btnSave.onclick = function(){ if(window.saveSnapshotToCloud) window.saveSnapshotToCloud(); };
+
+        var btnLoad = mk('⬇️ 从云端拉取');
+        btnLoad.onclick = function(){ if(window.loadSnapshotFromCloud) window.loadSnapshotFromCloud(); };
+
+        box.appendChild(btnSave);
+        box.appendChild(btnLoad);
+        card.appendChild(box);
+      }
+    }
+  }catch(e){}
+
+  /* 4) 防串线：主界面本地“保存”按钮不允许触发云端保存（某些历史脚本用“包含保存”做绑定） */
+  try{
+    var localSaveBtn = document.getElementById('save-btn');
+    if(localSaveBtn && !isInCloudPanel(localSaveBtn)){
+      localSaveBtn.addEventListener('click', function(e){
+        // 捕获阶段拦截所有后续监听器（包括误绑的云端保存）
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if(typeof saveData === 'function') saveData();
+      }, true);
+    }
+  }catch(e){}
+
+  /* 5) 兜底：阻止主界面任何“云端保存/拉取”点击链路（只允许云面板内触发） */
+  try{
+    document.addEventListener('click', function(e){
+      var el = e.target && e.target.closest ? e.target.closest('button,a,[role="button"]') : null;
+      if(!el) return;
+      if(isInCloudPanel(el)) return;
+
+      var t=(el.innerText||el.textContent||'').trim();
+      // 只拦“云端/快照”相关，不拦本地保存
+      var cloudHit = /云端|快照|snapshot|☁️|从云端|到云端|拉取云端/i.test(t);
+      if(cloudHit){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    }, true);
+  }catch(e){}
+
+  /* 6) 若后续脚本又插入主界面云按钮：用 MutationObserver 继续清掉（仍然只做 UI 清理） */
+  try{
+    var mo = new MutationObserver(function(){
+      // 重复执行最关键的几条清理
+      document.querySelectorAll('.top-cloud-actions,.cloud-actions-row').forEach(function(el){
+        if(!isInCloudPanel(el)) el.remove();
+      });
+      document.querySelectorAll('button').forEach(function(btn){
+        if(looksLikeGhostPill(btn)) btn.remove();
+      });
+    });
+    mo.observe(document.body, { childList:true, subtree:true });
+  }catch(e){}
+});
+</script>
 </body>
 </html>
 
