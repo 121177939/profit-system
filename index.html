@@ -1788,63 +1788,46 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 <div class="cloud-addon-panel">
   <div class="cloud-addon-card" id="addon-card">
+  <div class="cloud-addon-card" id="addon-card">
     <button id="btnCloudLogin">🔐 登录</button>
     <button id="btnCloudLogout">🚪 退出</button>
     <button id="btnCloudSave">⬆️ 保存到云端</button>
     <button id="btnCloudLoad">⬇️ 从云端拉取</button>
     <button id="btnCloudAdmin" style="display:none">👤 管理员</button>
+
+    <div class="admin-box" id="adminBox" style="display:none;margin-top:8px;border-top:1px solid #e5e7eb;padding-top:8px">
+      <div style="font-weight:700;margin-bottom:6px">管理员面板（仅管理员邮箱可见）</div>
+      <div style="font-size:12px;color:#555;margin-bottom:8px">
+        这里控制“是否允许登录”。被禁用的账号登录后会立刻被退出，并提示“账号已被管理员禁用”。
+      </div>
+      <div class="am-row" style="margin-top:0">
+        <button id="adminRefresh">刷新用户列表</button>
+      </div>
+
+      <div id="adminTools" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="adminCreateUserBtn" style="flex:1;min-width:140px;background:#1f2937;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">新建账号</button>
+        <button id="adminResetPwdBtn" style="flex:1;min-width:140px;background:#b91c1c;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-size:16px;">重置密码</button>
+        <button id="adminDeleteUserBtn" style="flex:1;min-width:140px;background:#fff;color:#c0392b;border:1px solid #c0392b;border-radius:10px;padding:12px 10px;font-size:16px;">删除账号</button>
+      </div>
+
+      <div style="overflow:auto;max-height:220px;margin-top:8px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr><th style="text-align:left;padding:6px 4px;border-bottom:1px solid #eee">邮箱</th><th style="text-align:left;padding:6px 4px;border-bottom:1px solid #eee">允许登录</th><th style="text-align:left;padding:6px 4px;border-bottom:1px solid #eee">创建时间</th></tr>
+          </thead>
+          <tbody id="adminTbody"></tbody>
+        </table>
+      </div>
+
+      <details style="margin-top:10px">
+        <summary style="cursor:pointer;font-size:12px;color:#555">如果列表为空/报错：点这里复制一次初始化SQL（在Supabase的SQL Editor运行）</summary>
+        <textarea class="sqlbox" readonly id="adminSql" style="width:100%;min-height:140px;margin-top:6px;border-radius:10px;border:1px solid #e5e7eb;padding:8px;font-size:12px"></textarea>
+      </details>
+    </div>
   </div>
   <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
-<!-- ======== 管理员弹窗（仅管理员邮箱可见） ======== -->
-<style>
-#adminModal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:2147483647}
-#adminModal .box{width:min(720px,92vw);max-height:86vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.35);padding:14px 14px 12px;font-family:sans-serif}
-#adminModal .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-#adminModal .title{font-weight:800;font-size:16px}
-#adminModal .muted{font-size:12px;color:#555;line-height:1.35;margin-top:2px}
-#adminModal .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
-#adminModal button{padding:10px 12px;border-radius:12px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:800;cursor:pointer}
-#adminModal button.primary{background:#111827;color:#fff;border:none}
-#adminModal button.danger{background:#b91c1c;color:#fff;border:none}
-#adminModal button.ghost{background:#fff}
-#adminModal table{width:100%;border-collapse:collapse;font-size:12px}
-#adminModal th,#adminModal td{border-bottom:1px solid #eee;padding:8px;text-align:left;vertical-align:middle}
-#adminModal th{position:sticky;top:0;background:#fff;z-index:1}
-#adminModal a.toggle{font-weight:800;text-decoration:none}
-#adminModal .msg{font-size:12px;margin-top:6px}
-#adminModal .msg.ok{color:#0f766e}
-#adminModal .msg.bad{color:#b91c1c}
-</style>
-
-<div id="adminModal" aria-hidden="true">
-  <div class="box" role="dialog" aria-modal="true">
-    <div class="top">
-      <div>
-        <div class="title">管理员面板</div>
-        <div class="muted">仅管理员邮箱可见：912872449@qq.com。这里管理账号：新建 / 删除 / 重置密码 / 是否允许登录（user_profiles.disabled）。所有动作均为手动点击触发。</div>
-      </div>
-      <button id="adminClose" class="ghost">✕ 关闭</button>
-    </div>
-
-    <div class="row">
-      <button id="adminRefresh" class="ghost">刷新账号列表</button>
-      <button id="adminCreate" class="primary">新建账号</button>
-      <button id="adminResetPwd" class="danger">重置密码</button>
-      <button id="adminDelete" class="ghost" style="border:1px solid #c0392b;color:#c0392b">删除账号</button>
-    </div>
-
-    <div style="overflow:auto;max-height:52vh;border:1px solid #eee;border-radius:12px">
-      <table>
-        <thead>
-          <tr><th style="min-width:220px">邮箱</th><th style="min-width:90px">允许登录</th><th style="min-width:160px">创建时间</th></tr>
-        </thead>
-        <tbody id="adminTbody"><tr><td colspan="3" style="color:#555">点击“刷新账号列表”加载</td></tr></tbody>
-      </table>
-    </div>
-
-    <div id="adminMsg" class="msg"></div>
-  </div>
 </div>
+  <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
 </div>
 
 <script>
@@ -2229,6 +2212,297 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+
+<script>
+/* ======== 管理员接入（从旧系统逻辑移植，手动触发，不自动请求） ======== */
+(function(){
+  const ADMIN_EMAIL = "912872449@qq.com".toLowerCase();
+  const PROFILE_TABLE = "user_profiles";
+
+  function getClient(){ return window.__supa || null; }
+  function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+  const __ADMIN_SQL = `create table if not exists public.user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  disabled boolean not null default false,
+  role text not null default 'user',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_profiles enable row level security;
+
+drop policy if exists "profiles read own" on public.user_profiles;
+drop policy if exists "profiles insert own" on public.user_profiles;
+drop policy if exists "profiles update own" on public.user_profiles;
+drop policy if exists "admin manage profiles" on public.user_profiles;
+
+-- 用户读取/写入自己的 profile
+create policy "profiles read own" on public.user_profiles
+for select
+using (auth.uid() = id and disabled = false);
+
+create policy "profiles insert own" on public.user_profiles
+for insert
+with check (auth.uid() = id);
+
+create policy "profiles update own" on public.user_profiles
+for update
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+-- 管理员：可管理全部用户（需要自己的 role='admin' 且未禁用）
+create policy "admin manage profiles" on public.user_profiles
+for all
+using (
+  exists (
+    select 1 from public.user_profiles p
+    where p.id = auth.uid() and p.role = 'admin' and p.disabled = false
+  )
+)
+with check (
+  exists (
+    select 1 from public.user_profiles p
+    where p.id = auth.uid() and p.role = 'admin' and p.disabled = false
+  )
+);
+`;
+
+  function isLoggedIn(){ return !!window.__isLoggedIn; }
+  function getCurrentEmail(){ return (window.__currentUserEmail || "").toLowerCase(); }
+  function isAdmin(){ return isLoggedIn() && getCurrentEmail() === ADMIN_EMAIL; }
+
+  async function getAccessToken(){
+    const client = getClient();
+    if(!client) return null;
+    try {
+      const { data } = await client.auth.getSession();
+      const token = data?.session?.access_token || null;
+      return token;
+    } catch(e) {
+      return null;
+    }
+  }
+
+  async function __callEdgeBodyToken(fnName, body){
+    const token = await getAccessToken();
+    if(!token) throw new Error("会话已失效：未获取到 access_token（请退出后重新登录）");
+    const url = (window.SUPABASE_URL || "").replace(/\/$/,"") + "/functions/v1/" + fnName + "?t=" + Date.now();
+    const payload = Object.assign({ access_token: token }, (body||{}));
+    const resp = await fetch(url, {
+      method: "POST",
+      mode: "cors",
+      cache: "no-store",
+      headers: {
+        "apikey": window.SUPABASE_KEY || "",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    let json = null;
+    try{ json = await resp.json(); }catch(e){}
+    if(!resp.ok){
+      const msg = (json && (json.error||json.message)) ? (json.error||json.message) : (resp.status + " " + resp.statusText);
+      throw new Error(msg);
+    }
+    if(json && json.error) throw new Error(json.error);
+    return json;
+  }
+
+  function _genStrongPw(n){
+    n = n || 12;
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*?";
+    let out = "";
+    for(let i=0;i<n;i++) out += chars[Math.floor(Math.random()*chars.length)];
+    return out;
+  }
+
+  async function checkProfileAndMaybeKick(user){
+    // 仅在“手动登录成功后”调用（属于用户动作触发）
+    try{
+      const client = getClient();
+      if(!client || !user) return;
+      const { data, error } = await client.from(PROFILE_TABLE).select("disabled,role").eq("id", user.id).maybeSingle();
+      if(error || !data) return; // 读不到就降级不拦
+      if(data.disabled === true){
+        try{ await client.auth.signOut(); }catch(e){}
+        window.__currentUserEmail = "";
+        try{ window.__setLoginState(false); }catch(e){ window.__isLoggedIn=false; }
+        alert("账号已被管理员禁用");
+      }
+    }catch(e){}
+  }
+
+  function refreshAdminVisibility(){
+    const btn = document.getElementById("btnCloudAdmin");
+    const box = document.getElementById("adminBox");
+    if(btn) btn.style.display = isAdmin() ? "block" : "none";
+    if(box && !isAdmin()) box.style.display = "none";
+  }
+
+  function showAdminUI(){
+    const box = document.getElementById("adminBox");
+    const sql = document.getElementById("adminSql");
+    if(sql) sql.value = __ADMIN_SQL;
+    if(box) box.style.display = "block";
+    loadAdminList();
+  }
+
+  async function loadAdminList(){
+    const tb = document.getElementById("adminTbody");
+    if(!tb) return;
+    tb.innerHTML = `<tr><td colspan="3" style="color:#555">加载中…</td></tr>`;
+
+    const client = getClient();
+    if(!client){ tb.innerHTML = `<tr><td colspan="3" style="color:#e74c3c">Supabase 未初始化</td></tr>`; return; }
+
+    const { data, error } = await client.from(PROFILE_TABLE)
+      .select("id,email,disabled,role,created_at,updated_at")
+      .order("created_at",{ascending:false}).limit(200);
+
+    if(error){
+      tb.innerHTML = `<tr><td colspan="3" style="color:#e74c3c">读取失败：${escapeHtml(error.message||error)}</td></tr>`;
+      return;
+    }
+    if(!data || !data.length){
+      tb.innerHTML = `<tr><td colspan="3" style="color:#555">暂无用户（或未初始化表/策略）</td></tr>`;
+      return;
+    }
+
+    tb.innerHTML = data.map(r=>{
+      const email = r.email || r.id;
+      const enabled = r.disabled !== true;
+      const t = r.created_at ? String(r.created_at).replace("T"," ").slice(0,19) : "";
+      return `<tr>
+        <td style="padding:6px 4px;border-bottom:1px solid #f3f4f6">${escapeHtml(email)}</td>
+        <td style="padding:6px 4px;border-bottom:1px solid #f3f4f6"><a class="toggleLogin" data-uid="${r.id}" data-enabled="${enabled ? "1":"0"}" href="javascript:void(0)">${enabled ? "✅ 允许":"⛔ 禁用"}</a></td>
+        <td style="padding:6px 4px;border-bottom:1px solid #f3f4f6">${escapeHtml(t)}</td>
+      </tr>`;
+    }).join("");
+
+    tb.querySelectorAll("a.toggleLogin").forEach(a=>{
+      a.onclick = async ()=>{
+        const uid = a.getAttribute("data-uid");
+        const cur = a.getAttribute("data-enabled")==="1";
+        const next = !cur;
+        const { error: upE } = await client.from(PROFILE_TABLE).update({ disabled: !next }).eq("id", uid);
+        if(upE){ alert("更新失败：" + (upE.message||upE)); return; }
+        loadAdminList();
+      };
+    });
+  }
+
+  async function doLogin(){
+    const client = getClient();
+    if(!client){ alert("Supabase 未初始化"); return; }
+    const email = (prompt("请输入邮箱：")||"").trim();
+    if(!email) return;
+    const pw = (prompt("请输入密码：")||"").trim();
+    if(!pw) return;
+
+    try {
+      const { data, error } = await client.auth.signInWithPassword({ email, password: pw });
+      if(error) throw error;
+      const user = data?.user;
+      window.__currentUserEmail = user?.email || email;
+      window.__setLoginState(true);
+      refreshAdminVisibility();
+      await checkProfileAndMaybeKick(user);
+      alert("登录成功");
+    } catch(e) {
+      alert("登录失败：" + (e?.message || e));
+    }
+  }
+
+  async function doLogout(){
+    const client = getClient();
+    try{ if(client) await client.auth.signOut(); }catch(e){}
+    window.__currentUserEmail = "";
+    try{ window.__setLoginState(false); }catch(e){ window.__isLoggedIn=false; }
+    refreshAdminVisibility();
+    alert("已退出");
+  }
+
+  function bind(){
+    const btnLogin = document.getElementById("btnCloudLogin");
+    const btnLogout = document.getElementById("btnCloudLogout");
+    const btnSave = document.getElementById("btnCloudSave");
+    const btnLoad = document.getElementById("btnCloudLoad");
+    const btnAdmin = document.getElementById("btnCloudAdmin");
+
+    if(btnLogin) btnLogin.onclick = doLogin;
+    if(btnLogout) btnLogout.onclick = doLogout;
+    if(btnSave) btnSave.onclick = ()=>window.saveSnapshotToCloud && window.saveSnapshotToCloud();
+    if(btnLoad) btnLoad.onclick = ()=>window.loadSnapshotFromCloud && window.loadSnapshotFromCloud();
+
+    if(btnAdmin) btnAdmin.onclick = ()=>{
+      if(!isAdmin()) return;
+      showAdminUI();
+    };
+
+    const btnRefresh = document.getElementById("adminRefresh");
+    if(btnRefresh) btnRefresh.onclick = ()=>loadAdminList();
+
+    const btnCreate = document.getElementById("adminCreateUserBtn");
+    if(btnCreate) btnCreate.onclick = async ()=>{
+      try{
+        const email = (prompt("请输入要新建的用户邮箱：")||"").trim();
+        if(!email) return;
+        let pw = (prompt("请输入初始密码（留空自动生成强密码）：")||"").trim();
+        if(!pw) pw = _genStrongPw(12);
+        if(pw.length < 8){ alert("密码至少8位"); return; }
+        await __callEdgeBodyToken("admin-create-user", {
+          admin_email: getCurrentEmail(),
+          target_email: email,
+          target_password: pw
+        });
+        alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
+        loadAdminList();
+      }catch(e){ alert("创建失败：" + (e?.message||e)); }
+    };
+
+    const btnReset = document.getElementById("adminResetPwdBtn");
+    if(btnReset) btnReset.onclick = async ()=>{
+      try{
+        const email = (prompt("请输入要重置密码的用户邮箱：")||"").trim();
+        if(!email) return;
+        let pw = (prompt("请输入新密码（留空自动生成强密码）：")||"").trim();
+        if(!pw) pw = _genStrongPw(12);
+        if(pw.length < 8){ alert("密码至少8位"); return; }
+        await __callEdgeBodyToken("reset-password", {
+          admin_email: getCurrentEmail(),
+          target_email: email,
+          new_password: pw
+        });
+        alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
+      }catch(e){ alert("重置失败：" + (e?.message||e)); }
+    };
+
+    const btnDel = document.getElementById("adminDeleteUserBtn");
+    if(btnDel) btnDel.onclick = async ()=>{
+      try{
+        const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+        if(!email) return;
+        if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+        // 兼容旧函数名：admin-delete-user，同时兼容你 zip 里的 delete-user
+        try {
+          await __callEdgeBodyToken("admin-delete-user", { admin_email: getCurrentEmail(), target_email: email, email });
+        } catch(e1) {
+          await __callEdgeBodyToken("delete-user", { admin_email: getCurrentEmail(), target_email: email, email });
+        }
+        alert("删除成功：" + email);
+        loadAdminList();
+      }catch(e){ alert("删除失败：" + (e?.message||e)); }
+    };
+
+    refreshAdminVisibility();
+  }
+
+  document.addEventListener("DOMContentLoaded", bind);
+})();
+</script>
+
 </body>
 </html>
 
@@ -2249,7 +2523,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
   const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   window.__supa = client;
-  window.__SUPABASE_URL = SUPABASE_URL;
 
   // 简单登录框
   function openLogin(){
@@ -2260,25 +2533,21 @@ document.addEventListener('DOMContentLoaded', function(){
     client.auth.signInWithPassword({email,password:pwd}).then(r=>{
       if(r.error){alert('登录失败:'+r.error.message);return;}
       __setLoginState(true);
-      try{ window.__currentUser = (r.data && (r.data.user || (r.data.session && r.data.session.user))) || null; window.__currentUserEmail = (window.__currentUser && window.__currentUser.email) || email; }catch(e){}
-      try{ if(typeof window.__updateCloudAdminVisibility==='function') window.__updateCloudAdminVisibility(); }catch(e){}
       alert('登录成功');
     });
   }
 
   function logout(){
     client.auth.signOut();
-    try{ window.__currentUser=null; window.__currentUserEmail=''; }catch(e){}
     __setLoginState(false);
-    try{ if(typeof window.__updateCloudAdminVisibility==='function') window.__updateCloudAdminVisibility(); }catch(e){}
     alert('已退出');
   }
 
-  // 仅绑定 ☁️ 面板按钮（避免误伤页面其它按钮）
-  const btnLogin  = document.getElementById('btnCloudLogin');
-  const btnLogout = document.getElementById('btnCloudLogout');
-  if(btnLogin)  btnLogin.onclick  = openLogin;
-  if(btnLogout) btnLogout.onclick = logout;
+  document.querySelectorAll('button').forEach(b=>{
+    const t=b.innerText||'';
+    if(t.includes('登录')) b.onclick=openLogin;
+    if(t.includes('退出')) b.onclick=logout;
+  });
 })();
 </script>
 
@@ -2337,227 +2606,5 @@ document.addEventListener('DOMContentLoaded', function(){
     if(t.includes('保存到云端')||t.includes('保存云端')||t.includes('保存')) btn.addEventListener('click', cloudSave);
     if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
   });
-})();
-</script>
-
-
-<script>
-/* ======== Step 4 管理员接入（基于你提供的 Edge Functions 参考实现） ======== */
-(function(){
-  const ADMIN_EMAIL = "912872449@qq.com";
-  const PROFILE_TABLE = "user_profiles";
-
-  function getClient(){ return window.__supa || null; }
-  function $id(x){ return document.getElementById(x); }
-
-  function setMsg(text, ok){
-    const el = $id("adminMsg");
-    if(!el) return;
-    el.textContent = text || "";
-    el.className = "msg" + (ok===true ? " ok" : ok===false ? " bad" : "");
-  }
-
-  function openAdmin(){
-    const m = $id("adminModal");
-    if(m){ m.style.display="flex"; m.setAttribute("aria-hidden","false"); }
-  }
-  function closeAdmin(){
-    const m = $id("adminModal");
-    if(m){ m.style.display="none"; m.setAttribute("aria-hidden","true"); }
-  }
-
-  // 仅管理员 + 已登录时显示管理员按钮
-  window.__updateCloudAdminVisibility = function(){
-    try{
-      const btn = $id("btnCloudAdmin");
-      if(!btn) return;
-      const okLogin = !!window.__isLoggedIn;
-      const email = (window.__currentUserEmail || (window.__currentUser && window.__currentUser.email) || "").toLowerCase();
-      const isAdmin = okLogin && email && (email === ADMIN_EMAIL.toLowerCase());
-      btn.style.display = isAdmin ? "" : "none";
-    }catch(e){}
-  };
-
-  async function getAccessToken(){
-    const sb = getClient();
-    if(!sb) throw new Error("Supabase 未初始化");
-    let session = null;
-    try{ session = (await sb.auth.getSession()).data?.session || null; }catch(e){}
-    if(!session){
-      // 仅在需要时刷新（手动动作触发）
-      try{ session = (await sb.auth.refreshSession()).data?.session || null; }catch(e){}
-    }
-    return session?.access_token || "";
-  }
-
-  async function callEdge(fnName, body){
-    const token = await getAccessToken();
-    if(!token) throw new Error("会话已失效：未获取到 access_token（请退出后重新登录）");
-    const base = (window.__SUPABASE_URL || "").replace(/\/$/,"");
-    if(!base) throw new Error("缺少 SUPABASE_URL");
-    const url = base + "/functions/v1/" + fnName + "?t=" + Date.now();
-    const payload = Object.assign({ access_token: token }, (body||{}));
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const txt = await resp.text();
-    let json=null;
-    try{ json = JSON.parse(txt); }catch(e){}
-    if(!resp.ok){
-      const msg = (json && (json.error || json.message)) || txt || ("HTTP " + resp.status);
-      throw new Error(msg);
-    }
-    if(json && json.error) throw new Error(json.error);
-    return json;
-  }
-
-  function esc(s){
-    return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  async function loadAdminList(){
-    const sb = getClient();
-    if(!sb) return;
-    const tb = $id("adminTbody");
-    if(!tb) return;
-    tb.innerHTML = '<tr><td colspan="3" style="color:#555">加载中…</td></tr>';
-    setMsg("", null);
-
-    const { data, error } = await sb
-      .from(PROFILE_TABLE)
-      .select("id,email,disabled,created_at")
-      .order("created_at",{ascending:false})
-      .limit(300);
-
-    if(error){
-      tb.innerHTML = '<tr><td colspan="3" style="color:#b91c1c">读取失败：'+esc(error.message||String(error))+'</td></tr>';
-      setMsg("提示：如果你还没建 user_profiles 表/策略，会导致这里读不到。需要先在 Supabase 建表并配置 RLS。", false);
-      return;
-    }
-    if(!data || !data.length){
-      tb.innerHTML = '<tr><td colspan="3" style="color:#555">暂无账号（或 user_profiles 为空）</td></tr>';
-      return;
-    }
-
-    tb.innerHTML = data.map(r=>{
-      const email = r.email || r.id;
-      const enabled = (r.disabled !== true);
-      const t = r.created_at ? String(r.created_at).replace("T"," ").slice(0,19) : "";
-      return '<tr>'
-        + '<td>'+esc(email)+'</td>'
-        + '<td><a class="toggle" data-uid="'+esc(r.id)+'" data-enabled="'+(enabled?"1":"0")+'" href="javascript:void(0)">'+(enabled?"✅ 允许":"⛔ 禁用")+'</a></td>'
-        + '<td>'+esc(t)+'</td>'
-      + '</tr>';
-    }).join("");
-
-    Array.from(tb.querySelectorAll("a.toggle")).forEach(a=>{
-      a.onclick = async ()=>{
-        try{
-          const uid = a.getAttribute("data-uid");
-          const cur = a.getAttribute("data-enabled")==="1";
-          const nextEnabled = !cur;
-          setMsg("更新中…", true);
-          const { error: upErr } = await sb.from(PROFILE_TABLE).update({ disabled: !nextEnabled }).eq("id", uid);
-          if(upErr) throw upErr;
-          setMsg("已更新", true);
-          await loadAdminList();
-        }catch(e){
-          setMsg("更新失败："+(e?.message||String(e)), false);
-        }
-      };
-    });
-  }
-
-  function genStrongPw(len){
-    const chars="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
-    let out="";
-    for(let i=0;i<len;i++) out += chars[Math.floor(Math.random()*chars.length)];
-    return out;
-  }
-
-  async function adminCreateUser(){
-    const email = (prompt("请输入新用户邮箱（必须未注册）：")||"").trim();
-    if(!email) return;
-    let pw = (prompt("请输入初始密码（留空自动生成强密码）：")||"").trim();
-    if(!pw) pw = genStrongPw(12);
-    if(pw.length < 8){ alert("密码至少8位"); return; }
-
-    setMsg("创建中…", true);
-    await callEdge("admin-create-user", {
-      admin_email: ADMIN_EMAIL,
-      target_email: email,
-      target_password: pw
-    });
-
-    // 尝试写入 user_profiles（若后端已做 trigger，可忽略失败）
-    try{
-      const sb = getClient();
-      if(sb){
-        await sb.from(PROFILE_TABLE).upsert({ email: email, disabled: false }).select();
-      }
-    }catch(e){}
-
-    alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
-    await loadAdminList();
-    setMsg("创建成功", true);
-  }
-
-  async function adminResetPassword(){
-    const email = (prompt("请输入要重置密码的用户邮箱：")||"").trim();
-    if(!email) return;
-    let pw = (prompt("请输入新密码（留空自动生成强密码）：")||"").trim();
-    if(!pw) pw = genStrongPw(12);
-    if(pw.length < 8){ alert("密码至少8位"); return; }
-
-    setMsg("重置中…", true);
-    await callEdge("reset-password", {
-      admin_email: ADMIN_EMAIL,
-      target_email: email,
-      new_password: pw
-    });
-    alert("已重置密码！\n邮箱：" + email + "\n新密码：" + pw);
-    setMsg("重置成功", true);
-  }
-
-  async function adminDeleteUser(){
-    const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
-    if(!email) return;
-    if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
-
-    setMsg("删除中…", true);
-    const res = await callEdge("delete-user", {
-      admin_email: ADMIN_EMAIL,
-      target_email: email
-    });
-    alert("删除完成：" + email);
-    await loadAdminList();
-    setMsg("删除成功", true);
-  }
-
-  // 绑定按钮（不自动发请求）
-  function bind(){
-    const btnAdmin = $id("btnCloudAdmin");
-    if(btnAdmin) btnAdmin.onclick = ()=>{ openAdmin(); };
-
-    const close = $id("adminClose");
-    if(close) close.onclick = closeAdmin;
-
-    const modal = $id("adminModal");
-    if(modal) modal.addEventListener("click", (e)=>{ if(e.target===modal) closeAdmin(); });
-
-    const r = $id("adminRefresh"); if(r) r.onclick = loadAdminList;
-    const c = $id("adminCreate"); if(c) c.onclick = adminCreateUser;
-    const rp = $id("adminResetPwd"); if(rp) rp.onclick = adminResetPassword;
-    const d = $id("adminDelete"); if(d) d.onclick = adminDeleteUser;
-
-    // 初始隐藏
-    try{ window.__updateCloudAdminVisibility(); }catch(e){}
-  }
-
-  // 只做事件绑定，不触发任何 Supabase 请求
-  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
-  else bind();
 })();
 </script>
