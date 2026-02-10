@@ -662,6 +662,130 @@
 }
 
 </style>
+
+<!-- ===== APP-like motion patch (non-invasive, no network) ===== -->
+<style id="app-motion">
+:root{
+  --ease-out:cubic-bezier(.2,.8,.2,1);
+  --ease-spring:cubic-bezier(.2,1.2,.2,1);
+}
+
+/* Respect reduced-motion */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+}
+
+/* App-like smoothness */
+html{scroll-behavior:smooth;}
+body{
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Page enter */
+body:not(.app-mounted) .container{opacity:0; transform: translateY(10px) scale(.995);}
+body.app-mounted .container{
+  animation: appFadeUp 420ms var(--ease-out) both;
+}
+@keyframes appFadeUp{
+  from{opacity:0; transform: translateY(10px) scale(.995);}
+  to{opacity:1; transform: translateY(0) scale(1);}
+}
+
+/* Card micro-depth + hover */
+.header, .table-container, .calculator-container, .cloud-addon-card, .login-box{
+  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
+  will-change: transform;
+}
+.header:active, .table-container:active{transform: translateY(1px);}
+
+/* Buttons: smoother + press */
+.action-btn, .cloud-addon-card button, .login-actions button, .delete-btn, .calculator-btn{
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), filter 160ms var(--ease-out), background-color 160ms var(--ease-out);
+  will-change: transform;
+}
+.action-btn:active, .cloud-addon-card button:active, .login-actions button:active, .delete-btn:active, .calculator-btn:active{
+  transform: translateY(1px) scale(.99);
+  filter: brightness(.98);
+}
+
+/* Inputs focus glow slightly softer */
+input:focus, select:focus{
+  box-shadow: 0 0 0 3px rgba(52,152,219,.12);
+}
+
+/* Table row enter animation */
+#table-body tr.row-enter{
+  opacity:0;
+  transform: translateY(6px);
+  animation: rowIn 320ms var(--ease-out) forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes rowIn{
+  to{opacity:1; transform: translateY(0);}
+}
+
+/* Toast: slide up + fade */
+.toast{
+  transform: translateX(-50%) translateY(10px);
+  opacity: 0;
+}
+.toast.show{
+  opacity:1;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
+}
+
+/* Cloud card open/close */
+.cloud-addon-card{
+  transform-origin: right bottom;
+  opacity:0;
+  transform: translateY(10px) scale(.96);
+  display:none;
+}
+.cloud-addon-card.is-open{
+  display:block;
+  animation: popIn 220ms var(--ease-spring) both;
+}
+.cloud-addon-card.is-closing{
+  display:block;
+  animation: popOut 180ms var(--ease-out) both;
+}
+@keyframes popIn{
+  from{opacity:0; transform: translateY(10px) scale(.96);}
+  to{opacity:1; transform: translateY(0) scale(1);}
+}
+@keyframes popOut{
+  from{opacity:1; transform: translateY(0) scale(1);}
+  to{opacity:0; transform: translateY(8px) scale(.97);}
+}
+
+/* Login box enter */
+#loginBox.motion-in{
+  animation: modalIn 240ms var(--ease-spring) both;
+}
+@keyframes modalIn{
+  from{opacity:0; transform: translate(-50%,-50%) scale(.96);}
+  to{opacity:1; transform: translate(-50%,-50%) scale(1);}
+}
+
+/* Ripple */
+.ripple-wrap{position:relative; overflow:hidden;}
+.ripple{
+  position:absolute;
+  border-radius:999px;
+  transform: scale(0);
+  opacity:.22;
+  background: currentColor;
+  pointer-events:none;
+  animation: ripple 520ms var(--ease-out) forwards;
+  mix-blend-mode: multiply;
+}
+@keyframes ripple{
+  to{transform: scale(1); opacity:0;}
+}
+</style>
+
 </head>
 <body>
 
@@ -2760,6 +2884,114 @@ const btnRefresh = document.getElementById("adminRefresh");
   const obs=new MutationObserver(applyAdminBtnStyles);
   obs.observe(document.body,{subtree:true,childList:true});
   window.addEventListener('load', applyAdminBtnStyles);
+})();
+</script>
+
+
+<script id="app-motion-js">
+/* ===== APP-like motion patch (non-invasive, no network, no cloud calls) ===== */
+(function(){
+  function raf(fn){ requestAnimationFrame(fn); }
+
+  // 1) Mark mounted for page-enter animation
+  document.addEventListener('DOMContentLoaded', () => {
+    raf(()=>document.body.classList.add('app-mounted'));
+  });
+
+  // 2) Animate table rows after each renderTable()
+  function patchRenderTable(){
+    const fn = window.renderTable;
+    if(typeof fn !== 'function') return false;
+
+    if(fn.__motion_patched) return true;
+    function wrapped(){
+      const res = fn.apply(this, arguments);
+      raf(()=>{
+        const rows = document.querySelectorAll('#table-body tr');
+        rows.forEach((tr, i)=>{
+          tr.classList.remove('row-enter');
+          // restart animation
+          void tr.offsetWidth;
+          tr.style.setProperty('--d', (Math.min(i, 20) * 18) + 'ms');
+          tr.classList.add('row-enter');
+        });
+      });
+      return res;
+    }
+    wrapped.__motion_patched = true;
+    window.renderTable = wrapped;
+    return true;
+  }
+
+  // Try patching early + later (because renderTable is defined in main script)
+  let tries = 0;
+  const timer = setInterval(()=>{
+    tries++;
+    if(patchRenderTable() || tries > 40) clearInterval(timer);
+  }, 200);
+
+  // 3) Make cloud card open/close animated without changing business logic
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('addon-toggle');
+    const card = document.getElementById('addon-card');
+    if(!toggle || !card) return;
+
+    // Remove old onclick (defined inline) safely by overwriting
+    toggle.onclick = function(){
+      const open = card.classList.contains('is-open');
+      if(open){
+        card.classList.remove('is-open');
+        card.classList.add('is-closing');
+        setTimeout(()=>card.classList.remove('is-closing'), 200);
+      }else{
+        card.classList.remove('is-closing');
+        card.classList.add('is-open');
+      }
+    };
+  });
+
+  // 4) Login box enter animation whenever it becomes visible
+  document.addEventListener('DOMContentLoaded', () => {
+    const loginBox = document.getElementById('loginBox');
+    if(!loginBox) return;
+    const mo = new MutationObserver(()=>{
+      const visible = loginBox.style.display !== 'none' && getComputedStyle(loginBox).display !== 'none';
+      if(visible){
+        loginBox.classList.remove('motion-in');
+        void loginBox.offsetWidth;
+        loginBox.classList.add('motion-in');
+      }else{
+        loginBox.classList.remove('motion-in');
+      }
+    });
+    mo.observe(loginBox, {attributes:true, attributeFilter:['style','class']});
+  });
+
+  // 5) Ripple effect on taps (opt-in per button)
+  document.addEventListener('DOMContentLoaded', () => {
+    const targets = document.querySelectorAll(
+      '.action-btn, .cloud-addon-card button, .login-actions button, .delete-btn, .calculator-btn'
+    );
+    targets.forEach(btn=>{
+      btn.classList.add('ripple-wrap');
+      btn.addEventListener('click', (e)=>{
+        // do not block existing handlers
+        const rect = btn.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height) * 1.2;
+        const x = (e.clientX - rect.left) - size/2;
+        const y = (e.clientY - rect.top) - size/2;
+
+        const s = document.createElement('span');
+        s.className = 'ripple';
+        s.style.width = s.style.height = size + 'px';
+        s.style.left = x + 'px';
+        s.style.top  = y + 'px';
+        btn.appendChild(s);
+        setTimeout(()=>{ try{s.remove();}catch(_){} }, 600);
+      }, {passive:true});
+    });
+  });
+
 })();
 </script>
 
