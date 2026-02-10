@@ -28,7 +28,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>商业订单利润管理系统</title>
+    <title>商业订单利润管理系统 - adminbtnv2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -597,59 +597,57 @@
         }
     
 /* ===== 管理员面板：三按钮并排 ===== */
-
-/* ===== 管理员三件套：重新设计（更干净、不花哨） ===== */
-#adminPanel .admin-action-row{
-  display:flex;
-  gap:10px;
-  margin-top:10px;
-}
-#adminPanel .admin-action-row .admin-btn{
-  flex:1;
-  height:38px;
-  border-radius:14px;
-  font-size:14px;
-  font-weight:700;
-  letter-spacing:.5px;
-  padding:0 10px;
-  white-space:nowrap;
-  border:1px solid rgba(17,24,39,.18);
-  background:#ffffff;
-  color:#111827;
-  box-shadow: 0 8px 22px rgba(17,24,39,.08);
-  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
-}
-#adminPanel .admin-action-row .admin-btn:active{
-  transform: scale(.98);
-  box-shadow: 0 6px 16px rgba(17,24,39,.08);
-}
-#adminPanel .admin-action-row .admin-btn:disabled{
-  opacity:.45;
-  box-shadow:none;
-  filter: grayscale(20%);
-}
-
-/* 语义配色：轻背景 + 清晰文字（不刺眼） */
-#adminPanel .admin-action-row .admin-btn-create{
-  background: rgba(34,197,94,.10);
-  border-color: rgba(34,197,94,.35);
-  color: #065f46;
-}
-#adminPanel .admin-action-row .admin-btn-reset{
-  background: rgba(59,130,246,.10);
-  border-color: rgba(59,130,246,.35);
-  color: #1e3a8a;
-}
-#adminPanel .admin-action-row .admin-btn-delete{
-  background: rgba(239,68,68,.10);
-  border-color: rgba(239,68,68,.40);
-  color: #991b1b;
-}
-
 #adminPanel .admin-action-row{display:flex; gap:12px; align-items:stretch;}
 #adminPanel .admin-action-row button{flex:1; margin:0 !important;}
 @media (max-width:420px){
   #adminPanel .admin-action-row{gap:10px;}
+}
+
+
+
+/* ===== 管理员三件套：重新设计 v2（强制生效，颜色更明显） ===== */
+#adminPanel .admin-action-row{
+  display:flex !important;
+  gap:10px !important;
+  margin-top:10px !important;
+}
+#adminPanel .admin-action-row .admin-btn{
+  flex:1 !important;
+  height:38px !important;
+  border-radius:14px !important;
+  font-size:14px !important;
+  font-weight:700 !important;
+  padding:0 10px !important;
+  white-space:nowrap !important;
+  border:1px solid rgba(17,24,39,.18) !important;
+  background:#ffffff !important;
+  color:#111827 !important;
+  box-shadow: 0 8px 22px rgba(17,24,39,.10) !important;
+}
+#adminPanel .admin-action-row .admin-btn:active{
+  transform: scale(.98) !important;
+  box-shadow: 0 6px 16px rgba(17,24,39,.10) !important;
+}
+#adminPanel .admin-action-row .admin-btn:disabled{
+  opacity:.45 !important;
+  box-shadow:none !important;
+}
+
+/* 语义配色：更明显的浅色底 */
+#adminPanel .admin-action-row .admin-btn-create{
+  background: rgba(34,197,94,.18) !important;
+  border-color: rgba(34,197,94,.55) !important;
+  color: #065f46 !important;
+}
+#adminPanel .admin-action-row .admin-btn-reset{
+  background: rgba(59,130,246,.18) !important;
+  border-color: rgba(59,130,246,.55) !important;
+  color: #1e3a8a !important;
+}
+#adminPanel .admin-action-row .admin-btn-delete{
+  background: rgba(239,68,68,.18) !important;
+  border-color: rgba(239,68,68,.60) !important;
+  color: #991b1b !important;
 }
 
 
