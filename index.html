@@ -572,6 +572,62 @@
             }
         }
     </style>
+
+<style id="cloud-product-level-ui">
+/* 产品级 ☁️ 按钮调优 */
+.cloud-fab, .cloud-button, #cloudButton {
+  top: calc(env(safe-area-inset-top, 0px) + 40px) !important;
+  right: 16px !important;
+  bottom: auto !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+/* 滚动时弱化存在感 */
+body.scrolling-down .cloud-fab,
+body.scrolling-down .cloud-button,
+body.scrolling-down #cloudButton {
+  opacity: .55;
+  transform: scale(.96);
+}
+</style>
+
+
+<style id="cloud-force-shift">
+/* 强制视觉下移：无论原本用 top / transform / JS 计算 */
+.cloud-fab, .cloud-button, #cloudButton {
+  transform: translateY(20px) !important;
+}
+</style>
+
+
+<style id="cloud-final-fix">
+/* 调试级强制位移：60px，必须肉眼可见 */
+.cloud-fab, .cloud-button, #cloudButton,
+[data-cloud], [data-cloud-button], .cloud-entry {
+  transform: translateY(60px) !important;
+  outline: 2px dashed red !important;
+}
+
+/* 在顶部画一条参考线，方便对比 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: red;
+  z-index: 9999;
+}
+</style>
+
+
+<style id="cloud-no-redline-v15j">
+body::before { content: none !important; display:none !important; }
+*[style*="outline: 2px dashed red"], *[style*="outline:2px dashed red"] { outline: none !important; }
+</style>
+
 </head>
 <body>
 
@@ -2347,6 +2403,376 @@ document.addEventListener('DOMContentLoaded', function () {
   }catch(e){}
 });
 </script>
+
+<script>
+/* ======== v8 登录UI优化 + ☁️面板按钮绑定（仅手动触发地基API，不直连orders/Supabase写入） ======== */
+document.addEventListener('DOMContentLoaded', () => {
+  // ---------- 1) 登录弹窗 UI ----------
+  const style = document.createElement('style');
+  style.textContent = `
+    .login-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.38);display:none;align-items:center;justify-content:center;z-index:20050;padding:16px}
+    .login-modal{width:min(420px, 100%);background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.28);overflow:hidden}
+    .login-modal header{padding:18px 18px 10px 18px;display:flex;align-items:center;justify-content:space-between}
+    .login-modal h3{margin:0;font-size:16px;letter-spacing:.2px}
+    .login-close{border:none;background:#f3f4f6;border-radius:10px;width:34px;height:34px;cursor:pointer;font-size:16px}
+    .login-modal .body{padding:12px 18px 18px 18px}
+    .login-field{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+    .login-field label{font-size:12px;color:#6b7280}
+    .login-input{display:flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px}
+    .login-input input{border:none;outline:none;flex:1;font-size:14px}
+    .login-eye{border:none;background:#f3f4f6;border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:700}
+    .login-actions{display:flex;gap:10px;margin-top:14px}
+    .login-actions button{flex:1;border:none;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
+    .btn-primary{background:#2563eb;color:#fff}
+    .btn-ghost{background:#f3f4f6;color:#111827}
+    .login-hint{margin-top:10px;font-size:12px;color:#6b7280;line-height:1.4}
+    .login-err{margin-top:10px;font-size:12px;color:#b91c1c;display:none}
+    .login-badge{font-size:12px;padding:4px 8px;border-radius:999px;background:#ecfeff;color:#155e75;border:1px solid #cffafe}
+  `;
+  document.head.appendChild(style);
+
+  const mask = document.createElement('div');
+  mask.className = 'login-modal-mask';
+  mask.innerHTML = `
+    <div class="login-modal" role="dialog" aria-modal="true" aria-label="登录">
+      <header>
+        <h3>🔐 登录 <span class="login-badge" id="login-status-badge">未登录</span></h3>
+        <button class="login-close" id="login-close" aria-label="关闭">✕</button>
+      </header>
+      <div class="body">
+        <div class="login-field">
+          <label>邮箱</label>
+          <div class="login-input">
+            <span aria-hidden="true">📧</span>
+            <input id="login-email" type="email" autocomplete="email" placeholder="name@example.com" />
+          </div>
+        </div>
+
+        <div class="login-field">
+          <label>密码</label>
+          <div class="login-input">
+            <span aria-hidden="true">🔑</span>
+            <input id="login-password" type="password" autocomplete="current-password" placeholder="请输入密码" />
+            <button class="login-eye" id="login-eye" type="button">显示</button>
+          </div>
+        </div>
+
+        <div class="login-actions">
+          <button class="btn-ghost" id="login-cancel" type="button">取消</button>
+          <button class="btn-primary" id="login-submit" type="button">登录</button>
+        </div>
+
+        <div class="login-err" id="login-err"></div>
+        <div class="login-hint">提示：登录态已持久化；刷新后仅恢复权限状态，不会自动云端保存/拉取。</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(mask);
+
+  const $ = (id) => document.getElementById(id);
+  const close = () => (mask.style.display = 'none');
+  const open  = () => (mask.style.display = 'flex');
+
+  mask.addEventListener('click', (e) => { if(e.target === mask) close(); });
+  $('login-close').onclick = close;
+  $('login-cancel').onclick = close;
+
+  $('login-eye').onclick = () => {
+    const inp = $('login-password');
+    const isPwd = inp.type === 'password';
+    inp.type = isPwd ? 'text' : 'password';
+    $('login-eye').textContent = isPwd ? '隐藏' : '显示';
+  };
+
+  function setErr(msg){
+    const el=$('login-err');
+    if(!msg){ el.style.display='none'; el.textContent=''; return; }
+    el.style.display='block';
+    el.textContent=msg;
+  }
+
+  // ---------- 2) Supabase Auth（只用于登录态，不做云端数据读写） ----------
+  // 若页面里已有 __supa，就复用；否则尝试初始化（保留 persistSession）
+  function getClient(){
+    if(window.__supa) return window.__supa;
+    if(!(window.supabase && window.supabase.createClient)) return null;
+
+    try{
+      const SUPABASE_URL = 'https://yqsjkdndasbdfmjwahwk.supabase.co';
+      const SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
+      window.__supa = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
+      );
+      return window.__supa;
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function refreshLoginBadge(){
+    const badge = $('login-status-badge');
+    badge.textContent = window.__isLoggedIn ? '已登录' : '未登录';
+    badge.style.background = window.__isLoggedIn ? '#ecfdf5' : '#ecfeff';
+    badge.style.color = window.__isLoggedIn ? '#065f46' : '#155e75';
+    badge.style.borderColor = window.__isLoggedIn ? '#bbf7d0' : '#cffafe';
+  }
+
+  // 刷新恢复：必须走 __setLoginState(true)
+  (async () => {
+    const client = getClient();
+    if(!client || typeof window.__setLoginState !== 'function') { refreshLoginBadge(); return; }
+    try{
+      const { data } = await client.auth.getSession();
+      if(data && data.session){ window.__setLoginState(true); }
+      else { window.__setLoginState(false); }
+    }catch(e){
+      // 不打断页面使用
+    }finally{
+      refreshLoginBadge();
+    }
+
+    // 同步监听
+    try{
+      client.auth.onAuthStateChange((_event, session) => {
+        if(typeof window.__setLoginState === 'function'){
+          window.__setLoginState(!!session);
+          refreshLoginBadge();
+        }
+      });
+    }catch(e){}
+  })();
+
+  async function doLogin(){
+    setErr('');
+    const email = ($('login-email').value || '').trim();
+    const password = $('login-password').value || '';
+    if(!email) return setErr('请输入邮箱');
+    if(!password) return setErr('请输入密码');
+
+    const client = getClient();
+    if(!client) return setErr('登录模块未就绪（supabase 未加载）');
+
+    $('login-submit').disabled = true;
+    $('login-submit').textContent = '登录中...';
+
+    try{
+      const { error } = await client.auth.signInWithPassword({ email, password });
+      if(error) return setErr('登录失败：' + error.message);
+
+      if(typeof window.__setLoginState === 'function') window.__setLoginState(true);
+      refreshLoginBadge();
+      close();
+      try{ if(typeof showToast==='function') showToast('登录成功'); }catch(e){}
+    }catch(e){
+      setErr('登录失败：' + (e && e.message ? e.message : '未知错误'));
+    }finally{
+      $('login-submit').disabled = false;
+      $('login-submit').textContent = '登录';
+    }
+  }
+
+  $('login-submit').onclick = doLogin;
+  mask.addEventListener('keydown', (e) => { if(e.key === 'Enter') doLogin(); if(e.key === 'Escape') close(); });
+
+  async function doLogout(){
+    const client = getClient();
+    if(!client){ if(typeof window.__setLoginState==='function') window.__setLoginState(false); refreshLoginBadge(); return; }
+    try{ await client.auth.signOut(); }catch(e){}
+    if(typeof window.__setLoginState==='function') window.__setLoginState(false);
+    refreshLoginBadge();
+    try{ if(typeof showToast==='function') showToast('已退出'); }catch(e){}
+  }
+
+  // ---------- 3) ☁️面板按钮：只做 UI 入口，调用地基 API ----------
+  const cloudCard = document.getElementById('addon-card') || document.querySelector('.cloud-addon-card');
+  if(cloudCard){
+    const btns = Array.from(cloudCard.querySelectorAll('button'));
+    const byText = (kw) => btns.find(b => (b.innerText||'').includes(kw));
+
+    const btnLogin  = byText('登录');
+    const btnLogout = byText('退出');
+    const btnSave   = byText('保存到云端');
+    const btnLoad   = byText('从云端拉取');
+
+    if(btnLogin){
+      btnLogin.onclick = () => { refreshLoginBadge(); open(); setTimeout(()=>$('login-email').focus(), 50); };
+    }
+    if(btnLogout){
+      btnLogout.onclick = () => { if(confirm('确认退出登录？')) doLogout(); };
+    }
+
+    // 地基 API：只允许手动触发
+    if(btnSave){
+      btnSave.onclick = async () => {
+        if(!window.__isLoggedIn){ open(); return; }
+        if(typeof window.saveSnapshotToCloud !== 'function'){
+          alert('地基 API 未就绪：saveSnapshotToCloud()'); return;
+        }
+        try{ await window.saveSnapshotToCloud(); }catch(e){ alert('保存失败：'+(e?.message||e)); }
+      };
+    }
+    if(btnLoad){
+      btnLoad.onclick = async () => {
+        if(!window.__isLoggedIn){ open(); return; }
+        if(typeof window.loadSnapshotFromCloud !== 'function'){
+          alert('地基 API 未就绪：loadSnapshotFromCloud()'); return;
+        }
+        try{ await window.loadSnapshotFromCloud(); }catch(e){ alert('拉取失败：'+(e?.message||e)); }
+      };
+    }
+  }
+
+});
+</script>
+
+
+<script>
+/* v9 UI补丁：打开登录时自动收起☁️面板，避免遮挡视野（不触发任何云端读写） */
+document.addEventListener('DOMContentLoaded', () => {
+  const card = document.getElementById('addon-card') || document.querySelector('.cloud-addon-card');
+  const mask = document.querySelector('.login-modal-mask');
+  if(!card || !mask) return;
+
+  const isLoginBtn = (btn) => {
+    const t = (btn.textContent || '').trim();
+    return t.includes('登录') || t.toLowerCase().includes('login');
+  };
+
+  // 1) 点击☁️面板里的“登录”按钮：先收起面板，再打开登录弹窗
+  const btns = Array.from(card.querySelectorAll('button,[role="button"],a'));
+  const loginBtn = btns.find(isLoginBtn);
+  if(loginBtn){
+    loginBtn.addEventListener('click', (e) => {
+      // 兼容原有内联 onclick（alert / openLogin / 其他），我们接管一次
+      e.preventDefault();
+      e.stopPropagation();
+      card.style.display = 'none';
+      // 打开我们已经注入的登录弹窗
+      mask.style.display = 'flex';
+      try{
+        // 聚焦邮箱输入
+        const email = document.getElementById('login-email');
+        if(email) email.focus();
+      }catch(_){}
+    }, {capture:true});
+  }
+
+  // 2) 兜底：只要登录弹窗显示，就强制收起☁️面板
+  const mo = new MutationObserver(() => {
+    const disp = getComputedStyle(mask).display;
+    if(disp !== 'none'){
+      card.style.display = 'none';
+    }
+  });
+  mo.observe(mask, {attributes:true, attributeFilter:['style','class']});
+});
+</script>
+
+
+<script>
+(function(){
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    const now = window.scrollY;
+    if (now > lastY + 8) {
+      document.body.classList.add('scrolling-down');
+    } else if (now < lastY - 8) {
+      document.body.classList.remove('scrolling-down');
+    }
+    lastY = now;
+  }, { passive: true });
+})();
+</script>
+
+
+<script>
+/*
+  v15 终极方案：
+  - ☁️ 按钮由 JS 动态插入 / 重算位置
+  - 使用 MutationObserver 捕获真实节点
+  - 在“最终节点”上强制 translateY(20px)
+*/
+(function () {
+  const OFFSET = 20;
+
+  function applyShift(el) {
+    if (!el || el.__cloudShiftApplied) return;
+    el.__cloudShiftApplied = true;
+
+    const prevTransform = getComputedStyle(el).transform;
+    if (prevTransform && prevTransform !== 'none') {
+      el.style.transform = prevTransform + ` translateY(${OFFSET}px)`;
+    } else {
+      el.style.transform = `translateY(${OFFSET}px)`;
+    }
+  }
+
+  function scan() {
+    document.querySelectorAll('button, div, a').forEach(el => {
+      const txt = (el.innerText || '').trim();
+      if (txt === '☁️' || txt === '☁') {
+        applyShift(el);
+      }
+    });
+  }
+
+  // 初次扫描
+  scan();
+
+  // 监听 DOM 变化（应对 JS 重新渲染 / 位置重算）
+  const mo = new MutationObserver(() => scan());
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+
+<style id="cloud-v15d-force-small">
+/* v15d：命中真实 ☁️ 节点后，强制视觉缩小（一定可见） */
+</style>
+
+<script>
+/*
+ v15j：
+ - 基于你确认“能显示”的 15d 机制：在最终 computed transform 上追加 scale
+ - 调到≈14px 观感：font-size 16 + scale 0.85（更接近14且跨浏览器更稳定）
+ - 每次应用前剥离旧 scale(...)，避免叠加导致尺寸失控/消失
+*/
+(function(){
+  const BASE_FONT_PX = 16;
+  const SCALE = 0.85;
+
+  function apply(el){
+    if (!el) return;
+
+    // 纠偏：每次都覆盖到目标字号（emoji 各浏览器差异，用 scale 收敛）
+    el.style.fontSize = BASE_FONT_PX + 'px';
+    el.style.lineHeight = '1';
+
+    const cs = getComputedStyle(el);
+    let t = (cs.transform && cs.transform !== 'none') ? cs.transform : '';
+
+    // 去掉旧 scale(...)（无论来自哪一版）
+    t = t.replace(/scale\([^\)]*\)/g, '').trim();
+
+    // 追加稳定 scale；若本来无 transform，直接 scale（15d 证明在你那可用）
+    el.style.transform = (t ? (t + ' ') : '') + 'scale(' + SCALE + ')';
+  }
+
+  function scan(){
+    document.querySelectorAll('button,div,a').forEach(el=>{
+      const txt = (el.innerText||'').trim();
+      if (txt === '☁️' || txt === '☁') apply(el);
+    });
+  }
+
+  scan();
+  const mo = new MutationObserver(scan);
+  mo.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+
 </body>
 </html>
 
@@ -2451,4 +2877,44 @@ document.addEventListener('DOMContentLoaded', function () {
     if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
   });
 })();
+</script>
+<script>
+// v10: ☁️ 悬浮按钮上移到顶部，避免遮挡底部数据（仅 UI 调整）
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = document.querySelector('.cloud-addon-panel');
+  const toggle = document.getElementById('addon-toggle') || document.querySelector('.cloud-addon-toggle');
+  const card = document.getElementById('addon-card') || document.querySelector('.cloud-addon-card');
+
+  if (!panel || !toggle) return;
+
+  // 采用安全区 inset，兼容刘海屏
+  const topInset = 'calc(env(safe-area-inset-top, 0px) + 12px)';
+  const rightInset = 'calc(env(safe-area-inset-right, 0px) + 12px)';
+
+  // 悬浮入口：右上角
+  panel.style.right = rightInset;
+  panel.style.top = topInset;
+  panel.style.bottom = 'auto';
+
+  // 弹出卡片：按钮下方
+  if (card) {
+    card.style.right = rightInset;
+    card.style.top = 'calc(env(safe-area-inset-top, 0px) + 78px)';
+    card.style.bottom = 'auto';
+  }
+
+  // 若页面有顶部固定栏，尽量避免遮挡（只做轻量避让）
+  // 规则：如果 toggle 覆盖到页面第一个大卡片顶部区域，则再下移一点
+  try {
+    const firstCard = document.querySelector('.card, .summary-card, .container .card, .dashboard-card');
+    if (firstCard) {
+      const tRect = toggle.getBoundingClientRect();
+      const cRect = firstCard.getBoundingClientRect();
+      if (tRect.bottom > cRect.top && tRect.top < cRect.bottom) {
+        panel.style.top = 'calc(env(safe-area-inset-top, 0px) + 60px)';
+        if (card) card.style.top = 'calc(env(safe-area-inset-top, 0px) + 126px)';
+      }
+    }
+  } catch(e) {}
+});
 </script>
