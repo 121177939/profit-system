@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -7,8 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -1788,13 +1788,63 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 <div class="cloud-addon-panel">
   <div class="cloud-addon-card" id="addon-card">
-    <button id="cloud-btn-login">🔐 登录</button>
-    <button id="cloud-btn-logout">🚪 退出</button>
-    <button id="cloud-btn-save">⬆️ 保存到云端</button>
-    <button id="cloud-btn-load">⬇️ 从云端拉取</button>
-    <button id="cloud-btn-admin">👤 管理员</button>
+    <button id="btnCloudLogin">🔐 登录</button>
+    <button id="btnCloudLogout">🚪 退出</button>
+    <button id="btnCloudSave">⬆️ 保存到云端</button>
+    <button id="btnCloudLoad">⬇️ 从云端拉取</button>
+    <button id="btnCloudAdmin" style="display:none">👤 管理员</button>
   </div>
   <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
+<!-- ======== 管理员弹窗（仅管理员邮箱可见） ======== -->
+<style>
+#adminModal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:2147483647}
+#adminModal .box{width:min(720px,92vw);max-height:86vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.35);padding:14px 14px 12px;font-family:sans-serif}
+#adminModal .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+#adminModal .title{font-weight:800;font-size:16px}
+#adminModal .muted{font-size:12px;color:#555;line-height:1.35;margin-top:2px}
+#adminModal .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+#adminModal button{padding:10px 12px;border-radius:12px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:800;cursor:pointer}
+#adminModal button.primary{background:#111827;color:#fff;border:none}
+#adminModal button.danger{background:#b91c1c;color:#fff;border:none}
+#adminModal button.ghost{background:#fff}
+#adminModal table{width:100%;border-collapse:collapse;font-size:12px}
+#adminModal th,#adminModal td{border-bottom:1px solid #eee;padding:8px;text-align:left;vertical-align:middle}
+#adminModal th{position:sticky;top:0;background:#fff;z-index:1}
+#adminModal a.toggle{font-weight:800;text-decoration:none}
+#adminModal .msg{font-size:12px;margin-top:6px}
+#adminModal .msg.ok{color:#0f766e}
+#adminModal .msg.bad{color:#b91c1c}
+</style>
+
+<div id="adminModal" aria-hidden="true">
+  <div class="box" role="dialog" aria-modal="true">
+    <div class="top">
+      <div>
+        <div class="title">管理员面板</div>
+        <div class="muted">仅管理员邮箱可见：912872449@qq.com。这里管理账号：新建 / 删除 / 重置密码 / 是否允许登录（user_profiles.disabled）。所有动作均为手动点击触发。</div>
+      </div>
+      <button id="adminClose" class="ghost">✕ 关闭</button>
+    </div>
+
+    <div class="row">
+      <button id="adminRefresh" class="ghost">刷新账号列表</button>
+      <button id="adminCreate" class="primary">新建账号</button>
+      <button id="adminResetPwd" class="danger">重置密码</button>
+      <button id="adminDelete" class="ghost" style="border:1px solid #c0392b;color:#c0392b">删除账号</button>
+    </div>
+
+    <div style="overflow:auto;max-height:52vh;border:1px solid #eee;border-radius:12px">
+      <table>
+        <thead>
+          <tr><th style="min-width:220px">邮箱</th><th style="min-width:90px">允许登录</th><th style="min-width:160px">创建时间</th></tr>
+        </thead>
+        <tbody id="adminTbody"><tr><td colspan="3" style="color:#555">点击“刷新账号列表”加载</td></tr></tbody>
+      </table>
+    </div>
+
+    <div id="adminMsg" class="msg"></div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -1803,6 +1853,244 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
  const c=document.getElementById('addon-card');
  t.onclick=function(){ c.style.display = (c.style.display==='block')?'none':'block'; };
 })();
+</script>
+
+
+<script>
+/* ======== 权限门禁：登录后才能 增加 / 导入 / 导出（Step 2） ======== */
+(function(){
+  // 单一真相源：登录态（Step2 仅UI权限，不触碰数据/云端）
+  window.__isLoggedIn = false;
+
+  function toast(msg){
+    try{ if(typeof showToast==='function') showToast(msg); else alert(msg); }
+    catch(e){ alert(msg); }
+  }
+
+  // 根据按钮文字匹配“写操作”
+  const WRITE_KEYWORDS = ['增加','新增','导入','导出'];
+
+  function isWriteButton(btn){
+    const t = (btn.innerText || btn.textContent || '').trim();
+    return WRITE_KEYWORDS.some(k => t.includes(k));
+  }
+
+  function applyGate(){
+    const buttons = Array.from(document.querySelectorAll('button'));
+    buttons.forEach(btn=>{
+      if(!isWriteButton(btn)) return;
+
+      // 视觉态
+      btn.disabled = !window.__isLoggedIn;
+      btn.style.opacity = window.__isLoggedIn ? '1' : '0.55';
+      btn.style.cursor  = window.__isLoggedIn ? 'pointer' : 'not-allowed';
+
+      // 点击门禁（兜底）
+      btn.addEventListener('click', function(e){
+        if(!window.__isLoggedIn){
+          e.preventDefault(); e.stopPropagation();
+          toast('请先登录后再使用该功能');
+          return false;
+        }
+      }, true); // 捕获阶段，防止被其它监听吞掉
+    });
+  }
+
+  // 供外挂登录按钮调用（不自动触发任何业务）
+  window.__setLoginState = function(v){
+    window.__isLoggedIn = !!v;
+    applyGate();
+  };
+
+  // 初始：未登录
+  applyGate();
+})();
+</script>
+
+
+<script>
+/* ======== 计算器拖动条（稳定合并版：不影响权限/云端） ======== */
+(function(){
+  const selectors = ['#calculator','#calculator-panel','.calculator','.calc-panel','[data-role="calculator"]'];
+
+  function attach(){
+    let panel=null;
+    for(const sel of selectors){
+      const el=document.querySelector(sel);
+      if(el){ panel=el; break; }
+    }
+    if(!panel) return false;
+
+    panel.style.position='fixed';
+    panel.style.zIndex=panel.style.zIndex||'10020';
+
+    if(panel.querySelector('.calc-drag-handle')) return true;
+
+    const handle=document.createElement('div');
+    handle.className='calc-drag-handle';
+    handle.textContent='⇕ 拖动计算器';
+    handle.style.cssText=[
+      'height:36px',
+      'line-height:36px',
+      'background:#2563eb',
+      'color:#fff',
+      'font-weight:700',
+      'text-align:center',
+      'cursor:move',
+      'user-select:none'
+    ].join(';');
+
+    panel.prepend(handle);
+
+    let sx=0,sy=0,ox=0,oy=0,drag=false;
+
+    function start(e){
+      drag=true;
+      const p=(e.touches&&e.touches[0])||e;
+      sx=p.clientX; sy=p.clientY;
+      const r=panel.getBoundingClientRect();
+      ox=r.left; oy=r.top;
+      document.addEventListener('mousemove',move);
+      document.addEventListener('mouseup',end);
+      document.addEventListener('touchmove',move,{passive:false});
+      document.addEventListener('touchend',end);
+      e.preventDefault();
+    }
+    function move(e){
+      if(!drag) return;
+      const p=(e.touches&&e.touches[0])||e;
+      panel.style.left=(ox+p.clientX-sx)+'px';
+      panel.style.top =(oy+p.clientY-sy)+'px';
+      panel.style.right='auto'; panel.style.bottom='auto';
+      e.preventDefault();
+    }
+    function end(){
+      drag=false;
+      document.removeEventListener('mousemove',move);
+      document.removeEventListener('mouseup',end);
+      document.removeEventListener('touchmove',move);
+      document.removeEventListener('touchend',end);
+    }
+
+    handle.addEventListener('mousedown',start);
+    handle.addEventListener('touchstart',start,{passive:false});
+    return true;
+  }
+
+  let tries=0;
+  const timer=setInterval(()=>{
+    tries++;
+    if(attach()||tries>20) clearInterval(timer);
+  },500);
+})();
+</script>
+
+
+<script>
+/* ======== 官方地基 API：云端快照（手动触发，整包覆盖） ======== */
+(function(){
+  function getClient(){ return window.__supa || null; }
+
+  window.saveSnapshotToCloud = async function saveSnapshotToCloud(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+
+    const client = getClient();
+    if(!client){ alert('Supabase 未初始化'); return; }
+
+    const { data:u, error:ue } = await client.auth.getUser();
+    if(ue || !u?.user){ alert('无法获取用户'); return; }
+
+    const { error } = await client
+      .from('app_state_user')
+      .update({ data: window.orders })
+      .eq('id', u.user.id);
+
+    if(error){ alert('保存失败：' + error.message); return; }
+    alert('已保存到云端');
+  };
+
+  window.loadSnapshotFromCloud = async function loadSnapshotFromCloud(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+
+    const client = getClient();
+    if(!client){ alert('Supabase 未初始化'); return; }
+
+    const { data:u, error:ue } = await client.auth.getUser();
+    if(ue || !u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .single();
+
+    if(error){ alert('拉取失败：' + error.message); return; }
+    if(!data){ alert('云端暂无数据'); return; }
+
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    window.orders = data.data;
+    if(typeof render === 'function') render();
+    alert('已从云端拉取');
+  };
+})();
+</script>
+
+<script>
+/* ======== UI 收口：主界面放回旧版云端按钮；☁️面板移除保存/拉取 ======== */
+document.addEventListener('DOMContentLoaded', function(){
+  // ☁️面板移除“保存到云端/从云端拉取”
+  try{
+    document.querySelectorAll('button,div').forEach(function(el){
+      const t=(el.innerText||'').trim();
+      if(t==='保存到云端' || t==='从云端拉取'){ el.remove(); }
+    });
+  }catch(e){}
+
+  function makeBtn(text,bg){
+    const b=document.createElement('button');
+    b.type='button';
+    b.innerHTML=text;
+    b.style.cssText='border:none;border-radius:999px;padding:10px 18px;font-weight:800;color:#fff;background:'+bg+';display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap';
+    return b;
+  }
+
+  const btnSave = makeBtn('', '#22c55e');
+  const btnLoad = makeBtn('', '#3b82f6');
+  btnSave.addEventListener('click', function(){ window.saveSnapshotToCloud && window.saveSnapshotToCloud(); });
+  btnLoad.addEventListener('click', function(){ window.loadSnapshotFromCloud && window.loadSnapshotFromCloud(); });
+
+  // 定位“总利润”卡片
+  let card=null;
+  const divs=document.querySelectorAll('div');
+  for(let i=0;i<divs.length;i++){
+    const t=(divs[i].innerText||'');
+    if(t.includes('总利润') && t.includes('￥')){ card=divs[i]; break; }
+  }
+
+  function placeIntoCard(c){
+    let row=c.querySelector('.top-cloud-actions');
+    if(!row){
+      row=document.createElement('div');
+      row.className='top-cloud-actions';
+      row.style.cssText='position:absolute;right:20px;top:24px;display:flex;gap:14px;z-index:20';
+      if(getComputedStyle(c).position==='static') c.style.position='relative';
+      c.appendChild(row);
+    }
+    if(!row.contains(btnSave)) row.appendChild(btnSave);
+    if(!row.contains(btnLoad)) row.appendChild(btnLoad);
+  }
+
+  if(card){ placeIntoCard(card); }
+  else{
+    const box=document.createElement('div');
+    box.style.cssText='position:fixed;right:16px;top:120px;z-index:99999;display:flex;gap:10px';
+    box.appendChild(btnSave);
+    box.appendChild(btnLoad);
+    document.body.appendChild(box);
+  }
+});
 </script>
 
 
@@ -1872,106 +2160,404 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 </script>
 
 
-
 <script>
-/* ===== v15k：Supabase 客户端初始化（不发请求） ===== */
-(function(){
-  const SUPABASE_URL = 'https://yqsjkdndasbdfmjwahwk.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
-  if(window.supabase && !window.__supa){
-    window.__supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
-    });
-  }
-})();
+/* ===== 登录态持久化恢复（仅恢复登录状态，不拉数据） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  if(!window.__supa) return;
+  window.__supa.auth.getSession().then(function(res){
+    if(res && res.data && res.data.session){
+      window.__isLoggedIn = true;
+      console.log('[AUTH] session restored');
+    }
+  });
+});
 </script>
 
+
 <script>
-/* ===== v15k：登录态本地恢复（不触发任何云请求） =====
-   说明：只恢复 UI/权限门禁。真实 session 是否有效，交由后续“手动操作时”的 Supabase 返回来兜底。 */
-(function(){
-  const KEY = 'v15k_login_ok';
-  document.addEventListener('DOMContentLoaded', function(){
-    try{
-      const ok = localStorage.getItem(KEY) === '1';
-      if(ok && typeof window.__setLoginState === 'function'){
-        window.__setLoginState(true);
-      }
-    }catch(e){}
+/* ===== ☁️ 面板：云端按钮回归（仅调用地基 API） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  // 找到 ☁️ 面板容器（兜底）
+  let panel = document.querySelector('.cloud-panel') || document.querySelector('.addon-panel') || null;
+  if(!panel) return;
+
+  // 避免重复插入
+  if(panel.querySelector('.cloud-snapshot-actions')) return;
+
+  const box = document.createElement('div');
+  box.className = 'cloud-snapshot-actions';
+  box.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:8px';
+
+  const btnSave = document.createElement('button');
+  btnSave.textContent = '☁️ 保存到云端';
+  btnSave.onclick = function(){
+    if(window.saveSnapshotToCloud) window.saveSnapshotToCloud();
+  };
+
+  const btnLoad = document.createElement('button');
+  btnLoad.textContent = '⬇️ 从云端拉取';
+  btnLoad.onclick = function(){
+    if(window.loadSnapshotFromCloud) window.loadSnapshotFromCloud();
+  };
+
+  box.appendChild(btnSave);
+  box.appendChild(btnLoad);
+  panel.appendChild(box);
+});
+</script>
+
+
+<script>
+/* ===== 主界面：移除残留的云端“☁️保存/拉取”按钮（只保留☁️面板入口） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  // 删除总利润卡片右侧插入的容器
+  document.querySelectorAll('.top-cloud-actions,.cloud-actions-row').forEach(function(el){ el.remove(); });
+
+  // 删除可能存在的右上/右侧兜底浮层
+  ['cloud-force-fab','cloud-csp-fab','cloud-direct-actions','cloud-csp-actions','cloud-fab'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.remove();
   });
 
-  // 给其它脚本使用的统一持久化入口（可选）
-  window.__persistLoginFlag = function(v){
-    try{ localStorage.setItem(KEY, v ? '1' : '0'); }catch(e){}
-  };
-})();
-</script>
-
-<script>
-/* ===== v15k：☁️ 面板按钮绑定（仅手动触发） ===== */
-(function(){
-  function $(id){ return document.getElementById(id); }
-
-  function bind(){
-    const btnLogin  = $('cloud-btn-login');
-    const btnLogout = $('cloud-btn-logout');
-    const btnSave   = $('cloud-btn-save');
-    const btnLoad   = $('cloud-btn-load');
-    const btnAdmin  = $('cloud-btn-admin');
-
-    if(btnLogin){
-      btnLogin.onclick = async function(){
-        const client = window.__supa;
-        if(!client){ alert('Supabase 未初始化'); return; }
-
-        const email = prompt('请输入邮箱');
-        if(!email) return;
-        const pwd = prompt('请输入密码');
-        if(!pwd) return;
-
-        const r = await client.auth.signInWithPassword({ email, password: pwd });
-        if(r.error){ alert('登录失败：' + r.error.message); return; }
-
-        if(typeof window.__setLoginState === 'function') window.__setLoginState(true);
-        if(typeof window.__persistLoginFlag === 'function') window.__persistLoginFlag(true);
-        alert('登录成功');
-      };
+  // 文本兜底：把主界面的“☁️ 保存/⬇️ 拉取”按钮移除（☁️面板里的保留）
+  document.querySelectorAll('button').forEach(function(btn){
+    var t=(btn.innerText||'').trim();
+    if(t==='☁️ 保存' || t==='⬇️ 拉取'){
+      if(!btn.closest('.cloud-snapshot-actions')) btn.remove();
     }
-
-    if(btnLogout){
-      btnLogout.onclick = async function(){
-        const client = window.__supa;
-        try{ if(client) await client.auth.signOut(); }catch(e){}
-        if(typeof window.__setLoginState === 'function') window.__setLoginState(false);
-        if(typeof window.__persistLoginFlag === 'function') window.__persistLoginFlag(false);
-        alert('已退出');
-      };
-    }
-
-    if(btnSave){
-      btnSave.onclick = function(){
-        if(window.saveSnapshotToCloud) window.saveSnapshotToCloud();
-        else alert('saveSnapshotToCloud 未定义');
-      };
-    }
-
-    if(btnLoad){
-      btnLoad.onclick = function(){
-        if(window.loadSnapshotFromCloud) window.loadSnapshotFromCloud();
-        else alert('loadSnapshotFromCloud 未定义');
-      };
-    }
-
-    if(btnAdmin){
-      btnAdmin.onclick = function(){
-        alert('管理员功能尚未接入（v15k 基线仅预留入口）');
-      };
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', bind);
-})();
+  });
+});
 </script>
 
 </body>
 </html>
+
+
+
+
+
+
+<script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ======== 正式登录（邮箱+密码） ======== */
+(function(){
+  const SUPABASE_URL = 'https://yqsjkdndasbdfmjwahwk.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  window.__supa = client;
+  window.__SUPABASE_URL = SUPABASE_URL;
+
+  // 简单登录框
+  function openLogin(){
+    const email = prompt('请输入邮箱');
+    if(!email) return;
+    const pwd = prompt('请输入密码');
+    if(!pwd) return;
+    client.auth.signInWithPassword({email,password:pwd}).then(r=>{
+      if(r.error){alert('登录失败:'+r.error.message);return;}
+      __setLoginState(true);
+      try{ window.__currentUser = (r.data && (r.data.user || (r.data.session && r.data.session.user))) || null; window.__currentUserEmail = (window.__currentUser && window.__currentUser.email) || email; }catch(e){}
+      try{ if(typeof window.__updateCloudAdminVisibility==='function') window.__updateCloudAdminVisibility(); }catch(e){}
+      alert('登录成功');
+    });
+  }
+
+  function logout(){
+    client.auth.signOut();
+    try{ window.__currentUser=null; window.__currentUserEmail=''; }catch(e){}
+    __setLoginState(false);
+    try{ if(typeof window.__updateCloudAdminVisibility==='function') window.__updateCloudAdminVisibility(); }catch(e){}
+    alert('已退出');
+  }
+
+  // 仅绑定 ☁️ 面板按钮（避免误伤页面其它按钮）
+  const btnLogin  = document.getElementById('btnCloudLogin');
+  const btnLogout = document.getElementById('btnCloudLogout');
+  if(btnLogin)  btnLogin.onclick  = openLogin;
+  if(btnLogout) btnLogout.onclick = logout;
+})();
+</script>
+
+
+<script>
+/* ======== Step 3 云端保存 / 拉取（正式登录整合版） ======== */
+(function(){
+  function getClient(){
+    return window.__supa || null;
+  }
+
+  async function cloudSave(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { error } = await client
+      .from('app_state_user')
+      .update({ data: window.orders })
+      .eq('id', u.user.id);
+
+    if(error){ alert('保存失败：'+error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function cloudLoad(){
+    if(!window.__isLoggedIn){ alert('请先登录'); return; }
+    const client=getClient();
+    if(!client){ alert('云端未初始化'); return; }
+
+    const { data: u, error: ue } = await client.auth.getUser();
+    if(ue||!u?.user){ alert('无法获取用户'); return; }
+
+    const { data, error } = await client
+      .from('app_state_user')
+      .select('data')
+      .eq('id', u.user.id)
+      .single();
+
+    if(error){ alert('拉取失败：'+error.message); return; }
+    if(!data){ alert('云端暂无数据'); return; }
+    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
+
+    window.orders = data.data;
+    if(typeof render==='function') render();
+    alert('已从云端拉取');
+  }
+
+  // bind by data-action if exists, else by text
+  document.querySelectorAll('button').forEach(btn=>{
+    const t=(btn.innerText||'');
+    if(t.includes('保存到云端')||t.includes('保存云端')||t.includes('保存')) btn.addEventListener('click', cloudSave);
+    if(t.includes('从云端拉取')||t.includes('拉取')) btn.addEventListener('click', cloudLoad);
+  });
+})();
+</script>
+
+
+<script>
+/* ======== Step 4 管理员接入（基于你提供的 Edge Functions 参考实现） ======== */
+(function(){
+  const ADMIN_EMAIL = "912872449@qq.com";
+  const PROFILE_TABLE = "user_profiles";
+
+  function getClient(){ return window.__supa || null; }
+  function $id(x){ return document.getElementById(x); }
+
+  function setMsg(text, ok){
+    const el = $id("adminMsg");
+    if(!el) return;
+    el.textContent = text || "";
+    el.className = "msg" + (ok===true ? " ok" : ok===false ? " bad" : "");
+  }
+
+  function openAdmin(){
+    const m = $id("adminModal");
+    if(m){ m.style.display="flex"; m.setAttribute("aria-hidden","false"); }
+  }
+  function closeAdmin(){
+    const m = $id("adminModal");
+    if(m){ m.style.display="none"; m.setAttribute("aria-hidden","true"); }
+  }
+
+  // 仅管理员 + 已登录时显示管理员按钮
+  window.__updateCloudAdminVisibility = function(){
+    try{
+      const btn = $id("btnCloudAdmin");
+      if(!btn) return;
+      const okLogin = !!window.__isLoggedIn;
+      const email = (window.__currentUserEmail || (window.__currentUser && window.__currentUser.email) || "").toLowerCase();
+      const isAdmin = okLogin && email && (email === ADMIN_EMAIL.toLowerCase());
+      btn.style.display = isAdmin ? "" : "none";
+    }catch(e){}
+  };
+
+  async function getAccessToken(){
+    const sb = getClient();
+    if(!sb) throw new Error("Supabase 未初始化");
+    let session = null;
+    try{ session = (await sb.auth.getSession()).data?.session || null; }catch(e){}
+    if(!session){
+      // 仅在需要时刷新（手动动作触发）
+      try{ session = (await sb.auth.refreshSession()).data?.session || null; }catch(e){}
+    }
+    return session?.access_token || "";
+  }
+
+  async function callEdge(fnName, body){
+    const token = await getAccessToken();
+    if(!token) throw new Error("会话已失效：未获取到 access_token（请退出后重新登录）");
+    const base = (window.__SUPABASE_URL || "").replace(/\/$/,"");
+    if(!base) throw new Error("缺少 SUPABASE_URL");
+    const url = base + "/functions/v1/" + fnName + "?t=" + Date.now();
+    const payload = Object.assign({ access_token: token }, (body||{}));
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const txt = await resp.text();
+    let json=null;
+    try{ json = JSON.parse(txt); }catch(e){}
+    if(!resp.ok){
+      const msg = (json && (json.error || json.message)) || txt || ("HTTP " + resp.status);
+      throw new Error(msg);
+    }
+    if(json && json.error) throw new Error(json.error);
+    return json;
+  }
+
+  function esc(s){
+    return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function loadAdminList(){
+    const sb = getClient();
+    if(!sb) return;
+    const tb = $id("adminTbody");
+    if(!tb) return;
+    tb.innerHTML = '<tr><td colspan="3" style="color:#555">加载中…</td></tr>';
+    setMsg("", null);
+
+    const { data, error } = await sb
+      .from(PROFILE_TABLE)
+      .select("id,email,disabled,created_at")
+      .order("created_at",{ascending:false})
+      .limit(300);
+
+    if(error){
+      tb.innerHTML = '<tr><td colspan="3" style="color:#b91c1c">读取失败：'+esc(error.message||String(error))+'</td></tr>';
+      setMsg("提示：如果你还没建 user_profiles 表/策略，会导致这里读不到。需要先在 Supabase 建表并配置 RLS。", false);
+      return;
+    }
+    if(!data || !data.length){
+      tb.innerHTML = '<tr><td colspan="3" style="color:#555">暂无账号（或 user_profiles 为空）</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = data.map(r=>{
+      const email = r.email || r.id;
+      const enabled = (r.disabled !== true);
+      const t = r.created_at ? String(r.created_at).replace("T"," ").slice(0,19) : "";
+      return '<tr>'
+        + '<td>'+esc(email)+'</td>'
+        + '<td><a class="toggle" data-uid="'+esc(r.id)+'" data-enabled="'+(enabled?"1":"0")+'" href="javascript:void(0)">'+(enabled?"✅ 允许":"⛔ 禁用")+'</a></td>'
+        + '<td>'+esc(t)+'</td>'
+      + '</tr>';
+    }).join("");
+
+    Array.from(tb.querySelectorAll("a.toggle")).forEach(a=>{
+      a.onclick = async ()=>{
+        try{
+          const uid = a.getAttribute("data-uid");
+          const cur = a.getAttribute("data-enabled")==="1";
+          const nextEnabled = !cur;
+          setMsg("更新中…", true);
+          const { error: upErr } = await sb.from(PROFILE_TABLE).update({ disabled: !nextEnabled }).eq("id", uid);
+          if(upErr) throw upErr;
+          setMsg("已更新", true);
+          await loadAdminList();
+        }catch(e){
+          setMsg("更新失败："+(e?.message||String(e)), false);
+        }
+      };
+    });
+  }
+
+  function genStrongPw(len){
+    const chars="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+    let out="";
+    for(let i=0;i<len;i++) out += chars[Math.floor(Math.random()*chars.length)];
+    return out;
+  }
+
+  async function adminCreateUser(){
+    const email = (prompt("请输入新用户邮箱（必须未注册）：")||"").trim();
+    if(!email) return;
+    let pw = (prompt("请输入初始密码（留空自动生成强密码）：")||"").trim();
+    if(!pw) pw = genStrongPw(12);
+    if(pw.length < 8){ alert("密码至少8位"); return; }
+
+    setMsg("创建中…", true);
+    await callEdge("admin-create-user", {
+      admin_email: ADMIN_EMAIL,
+      target_email: email,
+      target_password: pw
+    });
+
+    // 尝试写入 user_profiles（若后端已做 trigger，可忽略失败）
+    try{
+      const sb = getClient();
+      if(sb){
+        await sb.from(PROFILE_TABLE).upsert({ email: email, disabled: false }).select();
+      }
+    }catch(e){}
+
+    alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
+    await loadAdminList();
+    setMsg("创建成功", true);
+  }
+
+  async function adminResetPassword(){
+    const email = (prompt("请输入要重置密码的用户邮箱：")||"").trim();
+    if(!email) return;
+    let pw = (prompt("请输入新密码（留空自动生成强密码）：")||"").trim();
+    if(!pw) pw = genStrongPw(12);
+    if(pw.length < 8){ alert("密码至少8位"); return; }
+
+    setMsg("重置中…", true);
+    await callEdge("reset-password", {
+      admin_email: ADMIN_EMAIL,
+      target_email: email,
+      new_password: pw
+    });
+    alert("已重置密码！\n邮箱：" + email + "\n新密码：" + pw);
+    setMsg("重置成功", true);
+  }
+
+  async function adminDeleteUser(){
+    const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
+    if(!email) return;
+    if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
+
+    setMsg("删除中…", true);
+    const res = await callEdge("delete-user", {
+      admin_email: ADMIN_EMAIL,
+      target_email: email
+    });
+    alert("删除完成：" + email);
+    await loadAdminList();
+    setMsg("删除成功", true);
+  }
+
+  // 绑定按钮（不自动发请求）
+  function bind(){
+    const btnAdmin = $id("btnCloudAdmin");
+    if(btnAdmin) btnAdmin.onclick = ()=>{ openAdmin(); };
+
+    const close = $id("adminClose");
+    if(close) close.onclick = closeAdmin;
+
+    const modal = $id("adminModal");
+    if(modal) modal.addEventListener("click", (e)=>{ if(e.target===modal) closeAdmin(); });
+
+    const r = $id("adminRefresh"); if(r) r.onclick = loadAdminList;
+    const c = $id("adminCreate"); if(c) c.onclick = adminCreateUser;
+    const rp = $id("adminResetPwd"); if(rp) rp.onclick = adminResetPassword;
+    const d = $id("adminDelete"); if(d) d.onclick = adminDeleteUser;
+
+    // 初始隐藏
+    try{ window.__updateCloudAdminVisibility(); }catch(e){}
+  }
+
+  // 只做事件绑定，不触发任何 Supabase 请求
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
+})();
+</script>
