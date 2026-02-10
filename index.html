@@ -2783,273 +2783,342 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
 /*
- v20：接入“管理员”（纯本地、纯 UI，不改 orders/Supabase，不新增自动云端读写）
- - 管理员入口：长按 ☁️ 1.2s（不影响短按打开☁️面板）
- - 管理员鉴权：本地 PIN（localStorage.gqb_admin_pin_hash），首次设置；之后需验证
- - 管理员能力（本地）：
-   1) 强制登录态：__setLoginState(true/false)
-   2) 导出/导入本地快照（不触碰云端；导入不自动保存云端）
-   3) 清理本地数据（谨慎：清 localStorage 中本应用相关键）
+v22：云端账号管理员（读取旧管理员实现逻辑）
+- 真实云端账号：通过 Supabase Edge Functions（admin-create-user / reset-password / admin-delete-user）
+- 显示所有账号：读取 user_profiles（PROFILE_TABLE）列表
+- 封号/可登录：更新 user_profiles.disabled（RLS 需允许管理员更新；沿用旧版逻辑）
+- 仍遵守：不自动云端保存/拉取订单快照；管理员操作是“手动点击”触发
 */
 (function(){
-  const HOLD_MS = 1200;
-  const APP_PREFIX = 'gqb_'; // 仅清理以此开头的 key（避免误伤其他站点/工具）
-  const PIN_KEY = 'gqb_admin_pin_hash';
-
-  function sha256(str){
-    // WebCrypto sha-256
-    const enc = new TextEncoder().encode(str);
-    return crypto.subtle.digest('SHA-256', enc).then(buf =>
-      Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')
-    );
-  }
-
-  function el(tag, attrs={}, children=[]){
-    const n = document.createElement(tag);
-    Object.entries(attrs).forEach(([k,v])=>{
-      if(k==='style') Object.assign(n.style, v);
-      else if(k==='class') n.className = v;
-      else if(k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
-      else n.setAttribute(k, v);
-    });
-    children.forEach(c=>{
-      if(typeof c === 'string') n.appendChild(document.createTextNode(c));
-      else if(c) n.appendChild(c);
-    });
-    return n;
-  }
+  const SUPABASE_URL = (typeof window.SUPABASE_URL === 'string' && window.SUPABASE_URL) || 'https://yqsjkdndasbdfmjwahwk.supabase.co';
+  const SUPABASE_KEY = (typeof window.SUPABASE_KEY === 'string' && window.SUPABASE_KEY) || (typeof window.SUPABASE_PUBLISHABLE_KEY==='string' && window.SUPABASE_PUBLISHABLE_KEY) || 'sb_publishable_8owDy_9hIN3uaBCzd6jncg_i8e68dL0';
+  const PROFILE_TABLE = 'user_profiles';
 
   function toast(msg){
-    const t = el('div', { style: {
-      position:'fixed', left:'50%', bottom:'18px', transform:'translateX(-50%)',
-      background:'rgba(0,0,0,.78)', color:'#fff', padding:'10px 12px',
-      borderRadius:'12px', fontSize:'13px', zIndex: 999999, maxWidth:'92%',
-      boxShadow:'0 8px 20px rgba(0,0,0,.25)'
-    }}, [msg]);
-    document.body.appendChild(t);
-    setTimeout(()=>t.remove(), 1600);
+    try{
+      if(typeof window.amMsg === 'function'){ window.amMsg(String(msg||''), false); return; }
+    }catch(e){}
+    alert(String(msg||''));
+  }
+
+  function h(tag, attrs={}, kids=[]){
+    const el=document.createElement(tag);
+    for(const k in attrs){
+      const v=attrs[k];
+      if(k==='style') Object.assign(el.style, v);
+      else if(k==='class') el.className=v;
+      else if(k.startsWith('on') && typeof v==='function') el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v);
+    }
+    kids.forEach(c=> el.appendChild(typeof c==='string'?document.createTextNode(c):c));
+    return el;
+  }
+
+  function getClient(){
+    return window.__supa || (window.supabase && window.supabase.createClient ? null : null);
+  }
+
+  async function getSession(){
+    const client = getClient();
+    if(!client) throw new Error('Supabase 未初始化');
+    const { data, error } = await client.auth.getSession();
+    if(error) throw error;
+    return data && data.session ? data.session : null;
+  }
+
+  async function getAccessToken(){
+    const s = await getSession();
+    return s && s.access_token ? s.access_token : null;
+  }
+
+  async function getCurrentEmail(){
+    const s = await getSession();
+    return s && s.user && s.user.email ? s.user.email : '';
+  }
+
+  async function callEdge(fnName, body){
+    // 兼容移动端吞 Authorization：token 放 body；Edge Function Verify JWT 需 OFF（旧版就是这么做的）
+    const token = await getAccessToken();
+    if(!token) throw new Error('会话已失效：请重新登录');
+    const url = SUPABASE_URL.replace(/\/$/,'') + '/functions/v1/' + fnName + '?t=' + Date.now();
+    const payload = Object.assign({ access_token: token }, body||{});
+    const resp = await fetch(url, {
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{
+        'apikey': SUPABASE_KEY,
+        'Content-Type':'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    let json=null;
+    try{ json = await resp.json(); }catch(e){}
+    if(!resp.ok){
+      const msg = (json && (json.error||json.message)) ? (json.error||json.message) : (resp.status+' '+resp.statusText);
+      throw new Error(msg);
+    }
+    if(json && json.error) throw new Error(json.error);
+    return json;
   }
 
   function openAdminModal(){
-    const overlay = el('div', { style: {
-      position:'fixed', inset:'0', background:'rgba(0,0,0,.42)', zIndex: 999998,
+    const overlay = h('div',{style:{
+      position:'fixed', inset:'0', background:'rgba(0,0,0,.45)', zIndex: 999999,
       display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'
     }});
-
-    const card = el('div', { style: {
-      width:'min(520px, 100%)', background:'#fff', borderRadius:'18px',
+    const card = h('div',{style:{
+      width:'min(760px, 100%)', background:'#fff', borderRadius:'18px',
       boxShadow:'0 18px 60px rgba(0,0,0,.28)', overflow:'hidden'
     }});
-
-    const header = el('div', { style: {
+    const head = h('div',{style:{
       padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between',
       background:'linear-gradient(180deg,#f7f7f9,#ffffff)'
-    }}, [
-      el('div', { style:{fontWeight:'700', fontSize:'15px'}}, ['管理员']),
-      el('button', { style:{
-        border:'none', background:'rgba(0,0,0,.06)', borderRadius:'12px',
-        padding:'8px 10px', cursor:'pointer'
-      }, onclick: ()=>overlay.remove() }, ['关闭'])
+    }},[
+      h('div',{style:{fontWeight:'900', fontSize:'15px'}},['管理员 · 云端账号']),
+      h('div',{style:{display:'flex', gap:'8px'}},[
+        h('button',{style:{border:'none', background:'rgba(0,0,0,.06)', borderRadius:'12px', padding:'8px 10px', cursor:'pointer'},
+          onclick:()=>{ overlay.remove(); }},['关闭'])
+      ])
     ]);
 
-    const body = el('div', { style:{padding:'14px 16px'} });
+    const body = h('div',{style:{padding:'14px 16px'}});
+    const row = h('div',{style:{display:'grid', gridTemplateColumns:'1.1fr .9fr', gap:'12px'}});
+    const left = h('div');
+    const right = h('div');
 
-    const pinRow = el('div', { style:{display:'flex', gap:'10px', alignItems:'center', marginBottom:'12px'}});
-    const pinInput = el('input', { type:'password', placeholder:'管理员 PIN', style:{
-      flex:'1', padding:'10px 12px', borderRadius:'12px', border:'1px solid rgba(0,0,0,.14)',
-      fontSize:'14px', outline:'none'
-    }});
-    const pinBtn = el('button', { style:{
-      padding:'10px 12px', borderRadius:'12px', border:'none',
-      background:'#111827', color:'#fff', cursor:'pointer', fontSize:'14px'
-    }}, ['解锁']);
-    pinRow.appendChild(pinInput);
-    pinRow.appendChild(pinBtn);
+    // Left: list
+    const listCard = h('div',{style:{border:'1px solid rgba(0,0,0,.10)', borderRadius:'16px', overflow:'hidden'}});
+    const listHead = h('div',{style:{padding:'10px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#fafafa'}},[
+      h('div',{style:{fontWeight:'800'}},['账号列表']),
+      h('button',{style:{border:'none', background:'rgba(17,24,39,.08)', borderRadius:'12px', padding:'8px 10px', cursor:'pointer', fontSize:'13px', fontWeight:'800'},
+        onclick:()=>loadList()},['刷新'])
+    ]);
+    const tableWrap = h('div',{style:{maxHeight:'52vh', overflow:'auto'}});
+    const table = h('table',{style:{width:'100%', borderCollapse:'collapse', fontSize:'13px'}});
+    const thead = h('thead',{},[
+      h('tr',{},[
+        h('th',{style:{textAlign:'left', padding:'10px 12px', borderBottom:'1px solid rgba(0,0,0,.06)'}},['邮箱']),
+        h('th',{style:{textAlign:'left', padding:'10px 12px', borderBottom:'1px solid rgba(0,0,0,.06)'}},['状态']),
+        h('th',{style:{textAlign:'left', padding:'10px 12px', borderBottom:'1px solid rgba(0,0,0,.06)'}},['创建时间'])
+      ])
+    ]);
+    const tbody = h('tbody');
+    table.appendChild(thead); table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    listCard.appendChild(listHead);
+    listCard.appendChild(tableWrap);
 
-    const lockedHint = el('div', { style:{fontSize:'12px', color:'rgba(0,0,0,.55)', marginBottom:'10px'}},
-      ['首次使用会要求设置 PIN（仅保存在本机 localStorage）。']);
+    // Right: actions
+    const actCard = h('div',{style:{border:'1px solid rgba(0,0,0,.10)', borderRadius:'16px', padding:'12px'}});
+    const actTitle = h('div',{style:{fontWeight:'900', marginBottom:'8px'}},['操作']);
 
-    const actions = el('div', { style:{
-      display:'grid', gridTemplateColumns:'1fr', gap:'10px', opacity:'0.5', pointerEvents:'none'
-    }});
+    function input(placeholder, type='text'){
+      return h('input',{type, placeholder, style:{
+        width:'100%', padding:'10px 12px', borderRadius:'12px', border:'1px solid rgba(0,0,0,.14)',
+        fontSize:'14px', outline:'none', marginBottom:'10px'
+      }});
+    }
+    const emailI = input('目标邮箱（例如：a@b.com）');
+    const passI  = input('密码（>=8位）', 'password');
 
-    function actionBtn(label, desc, onClick, danger=false){
-      const btn = el('button', { style:{
-        textAlign:'left', padding:'12px 12px', borderRadius:'14px',
-        border:'1px solid rgba(0,0,0,.10)', background:'#fff', cursor:'pointer',
-        display:'flex', flexDirection:'column', gap:'4px'
-      }, onclick:onClick });
-      const t = el('div', { style:{fontWeight:'650', color: danger ? '#b91c1c' : '#111827'}}, [label]);
-      const d = el('div', { style:{fontSize:'12px', color:'rgba(0,0,0,.55)'}}, [desc]);
-      btn.appendChild(t); btn.appendChild(d);
-      return btn;
+    function btn(label, onClick, danger=false){
+      return h('button',{style:{
+        width:'100%', padding:'11px 12px', borderRadius:'12px', border:'none',
+        background: danger ? 'rgba(185,28,28,.10)' : '#111827',
+        color: danger ? '#b91c1c' : '#fff',
+        cursor:'pointer', fontSize:'14px', fontWeight:'900', marginBottom:'10px'
+      }, onclick:onClick},[label]);
     }
 
-    // 1) 强制登录态
-    actions.appendChild(actionBtn('强制登录态：已登录', '调用 __setLoginState(true)。不会触发云端任何拉取/保存。', ()=>{
-      if (typeof window.__setLoginState === 'function') { window.__setLoginState(true); toast('已设置为登录态'); }
-      else toast('__setLoginState 不存在');
-    }));
-    actions.appendChild(actionBtn('强制登录态：未登录', '调用 __setLoginState(false)。', ()=>{
-      if (typeof window.__setLoginState === 'function') { window.__setLoginState(false); toast('已设置为未登录'); }
-      else toast('__setLoginState 不存在');
-    }));
-
-    // 2) 导出本地快照（尽量走现有本地导出，如无则导出 localStorage 相关键）
-    actions.appendChild(actionBtn('导出本地快照（JSON）', '仅本地下载，不触碰云端。', ()=>{
+    const createBtn = btn('新建账号', async ()=>{
       try{
-        const payload = { type:'localStorage', exportedAt: new Date().toISOString(), data:{} };
-        Object.keys(localStorage).forEach(k=>{
-          // 只导出本应用相关键；如果你希望全导出，可改为 true
-          if (k.startsWith(APP_PREFIX) || k.includes('orders') || k.includes('snapshot') || k.includes('login')) {
-            payload.data[k] = localStorage.getItem(k);
-          }
-        });
-        const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'gqb_local_snapshot.json';
-        a.click();
-        setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-        toast('已导出本地快照');
-      } catch(e){
-        console.error(e);
-        toast('导出失败（见控制台）');
-      }
-    }));
+        const admin_email = await getCurrentEmail();
+        const target_email = (emailI.value||'').trim();
+        const pw = (passI.value||'').trim();
+        if(!target_email) return toast('请输入目标邮箱');
+        if(!pw || pw.length<8) return toast('密码至少 8 位');
+        // 兼容字段名：同时发送 email/target_email
+        await callEdge('admin-create-user', { admin_email, target_email, email: target_email, target_password: pw });
+        toast('创建成功');
+        passI.value='';
+        await loadList();
+      }catch(e){ toast('创建失败：'+(e?.message||e)); }
+    });
 
-    // 3) 导入本地快照（JSON）
-    actions.appendChild(actionBtn('导入本地快照（JSON）', '选择 gqb_local_snapshot.json。导入后需手动刷新页面。', ()=>{
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.accept = 'application/json';
-      inp.onchange = async () => {
-        const f = inp.files && inp.files[0];
-        if (!f) return;
-        try{
-          const txt = await f.text();
-          const obj = JSON.parse(txt);
-          if (!obj || typeof obj !== 'object' || !obj.data) { toast('文件格式不对'); return; }
-          const keys = Object.keys(obj.data);
-          keys.forEach(k=>{
-            if (typeof obj.data[k] === 'string') localStorage.setItem(k, obj.data[k]);
-          });
-          toast('已导入（建议刷新）');
-        } catch(e){
-          console.error(e);
-          toast('导入失败（见控制台）');
-        }
-      };
-      inp.click();
-    }));
+    const resetBtn = btn('重置密码', async ()=>{
+      try{
+        const admin_email = await getCurrentEmail();
+        const target_email = (emailI.value||'').trim();
+        const pw = (passI.value||'').trim();
+        if(!target_email) return toast('请输入目标邮箱');
+        if(!pw || pw.length<8) return toast('密码至少 8 位');
+        await callEdge('reset-password', { admin_email, target_email, email: target_email, new_password: pw });
+        toast('重置成功');
+        passI.value='';
+      }catch(e){ toast('重置失败：'+(e?.message||e)); }
+    });
 
-    // 4) 清理本地数据
-    actions.appendChild(actionBtn('清理本地数据（危险）', '删除 localStorage 中以 gqb_ 开头的键。不会触碰云端。', ()=>{
-      const ok = confirm('确认清理本地数据？此操作不可撤销（仅清理以 gqb_ 开头的键）。');
-      if (!ok) return;
-      const keys = Object.keys(localStorage).filter(k=>k.startsWith(APP_PREFIX));
-      keys.forEach(k=>localStorage.removeItem(k));
-      toast('已清理（建议刷新）');
-    }, true));
+    const delBtn = btn('删除账号（危险）', async ()=>{
+      try{
+        const admin_email = await getCurrentEmail();
+        const target_email = (emailI.value||'').trim();
+        if(!target_email) return toast('请输入目标邮箱');
+        if(!confirm('确定删除账号：'+target_email+' ?\n删除后不可恢复')) return;
+        // 旧函数名：admin-delete-user（zip 文件 delete-user.ts 建议部署为该名）
+        await callEdge('admin-delete-user', { admin_email, target_email, email: target_email });
+        toast('删除成功');
+        await loadList();
+      }catch(e){ toast('删除失败：'+(e?.message||e)); }
+    }, true);
 
-    body.appendChild(pinRow);
-    body.appendChild(lockedHint);
-    body.appendChild(actions);
+    actCard.appendChild(actTitle);
+    actCard.appendChild(emailI);
+    actCard.appendChild(passI);
+    actCard.appendChild(createBtn);
+    actCard.appendChild(resetBtn);
+    actCard.appendChild(delBtn);
+    actCard.appendChild(h('div',{style:{fontSize:'12px', color:'rgba(0,0,0,.55)'}},[
+      '封号/解封：在左侧列表点击状态即可切换（写入 user_profiles.disabled）。'
+    ]));
 
-    card.appendChild(header);
-    card.appendChild(body);
+    left.appendChild(listCard);
+    right.appendChild(actCard);
+    row.appendChild(left); row.appendChild(right);
+    body.appendChild(row);
+
+    card.appendChild(head); card.appendChild(body);
     overlay.appendChild(card);
-    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+    overlay.addEventListener('click',(e)=>{ if(e.target===overlay) overlay.remove(); });
     document.body.appendChild(overlay);
 
-    async function unlockFlow(){
-      const pin = (pinInput.value||'').trim();
-      if (!pin) { toast('请输入 PIN'); return; }
+    async function loadList(){
+      try{
+        const client = getClient();
+        if(!client) throw new Error('Supabase 未初始化');
+        tbody.innerHTML = `<tr><td colspan="3" style="padding:10px 12px;color:#555">加载中…</td></tr>`;
+        const { data, error } = await client
+          .from(PROFILE_TABLE)
+          .select('id,email,disabled,role,created_at,updated_at')
+          .order('created_at',{ascending:false})
+          .limit(300);
+        if(error) throw error;
+        if(!data || !data.length){
+          tbody.innerHTML = `<tr><td colspan="3" style="padding:10px 12px;color:#555">暂无用户（或表/策略未初始化）</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = '';
+        data.forEach(r=>{
+          const tr=document.createElement('tr');
+          tr.innerHTML = `
+            <td style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06)">${(r.email||r.id||'')}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06)">
+              <a href="javascript:void(0)" data-uid="${r.id}" data-enabled="${r.disabled===true?'0':'1'}" style="font-weight:800;text-decoration:none">
+                ${r.disabled===true ? '⛔ 已封号' : '✅ 可登录'}
+              </a>
+            </td>
+            <td style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06)">${(r.created_at||'').toString().replace('T',' ').slice(0,19)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
 
-      const saved = localStorage.getItem(PIN_KEY);
-      const hash = await sha256(pin);
-
-      if (!saved) {
-        // 首次设置
-        localStorage.setItem(PIN_KEY, hash);
-        actions.style.opacity = '1';
-        actions.style.pointerEvents = 'auto';
-        lockedHint.textContent = '已设置并解锁管理员。';
-        toast('管理员已启用');
-        return;
-      }
-
-      if (hash === saved) {
-        actions.style.opacity = '1';
-        actions.style.pointerEvents = 'auto';
-        lockedHint.textContent = '已解锁管理员。';
-        toast('已解锁');
-      } else {
-        toast('PIN 错误');
+        tbody.querySelectorAll('a[data-uid]').forEach(a=>{
+          a.onclick = async ()=>{
+            try{
+              const uid = a.getAttribute('data-uid');
+              const cur = a.getAttribute('data-enabled') === '1';
+              const nextEnabled = !cur;
+              const { error: upE } = await client.from(PROFILE_TABLE).update({ disabled: !nextEnabled }).eq('id', uid);
+              if(upE) throw upE;
+              await loadList();
+            }catch(e){ toast('更新失败：'+(e?.message||e)); }
+          };
+        });
+      }catch(e){
+        tbody.innerHTML = `<tr><td colspan="3" style="padding:10px 12px;color:#e74c3c">读取失败：${(e?.message||e)}</td></tr>`;
       }
     }
 
-    pinBtn.addEventListener('click', unlockFlow);
-    pinInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') unlockFlow(); });
+    // 初次加载
+    loadList();
   }
 
-  function findCloudButton(){
-    // 尽量命中真实 ☁️ 节点（和你当前稳定方案一致：textContent 含 ☁）
-    const all = document.querySelectorAll('button,div,a,[role="button"]');
-    for (const n of all) {
-      const t = (n.textContent || '').trim();
-      if (t === '☁️' || t === '☁' || t.includes('☁')) return n;
+  function bindAdminButton(){
+    // ☁️面板内的“管理员”按钮（旧版占位 alert）——尽量宽松匹配
+    const btns = Array.from(document.querySelectorAll('.cloud-addon-card button, button'));
+    const adminBtn = btns.find(b => (b.textContent||'').includes('管理员'));
+    if(adminBtn && !adminBtn.__boundAdmin){
+      adminBtn.__boundAdmin = true;
+      adminBtn.addEventListener('click', (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        (async ()=>{
+          try{
+            const email = await getCurrentEmail();
+            if ((email||'').toLowerCase() !== '912872449@qq.com') {
+              toast('无权限：仅管理员可进入');
+              return;
+            }
+            openAdminModal();
+          }catch(e){
+            toast('无法校验权限：'+(e?.message||e));
+          }
+        })();
+      }, true);
     }
-    return null;
   }
 
-  // 长按 ☁️ 打开管理员（不干扰短按）
-  function attachHold(){
-    const btn = findCloudButton();
-    if (!btn || btn.__adminHoldBound) return;
-    btn.__adminHoldBound = true;
+  document.addEventListener('DOMContentLoaded', bindAdminButton);
+  new MutationObserver(bindAdminButton).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 
-    let timer = null;
-    let moved = false;
-    const start = (e)=>{
-      moved = false;
-      // 不阻止短按默认行为；仅在长按触发时阻止
-      timer = setTimeout(()=>{
-        timer = null;
-        // 尝试关闭☁️面板（如果打开），避免挡住管理员
-        try{
-          const panel = document.querySelector('#cloudPanel,.cloud-panel,.cloudPanel,[data-panel="cloud"],[data-cloud-panel]');
-          if (panel && panel.style) panel.style.display = 'none';
-        }catch(_){}
-        openAdminModal();
-      }, HOLD_MS);
-    };
-    const end = ()=>{
-      if (timer) { clearTimeout(timer); timer = null; }
-    };
-    const move = ()=>{
-      moved = true;
-      if (timer) { clearTimeout(timer); timer = null; }
-    };
 
-    btn.addEventListener('touchstart', start, {passive:true});
-    btn.addEventListener('touchend', end);
-    btn.addEventListener('touchcancel', end);
-    btn.addEventListener('touchmove', move, {passive:true});
+<script>
+/* v23：管理员入口鉴权（非管理员不可进入/不可见） */
+(function(){
+  const ADMIN_EMAIL = '912872449@qq.com';
 
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('mouseup', end);
-    btn.addEventListener('mouseleave', end);
-
-    // 也支持右键（桌面）
-    btn.addEventListener('contextmenu', (e)=>{ e.preventDefault(); openAdminModal(); });
+  async function getEmailSafe(){
+    try{
+      if (typeof getCurrentEmail === 'function'){
+        const e = await getCurrentEmail();
+        return (e||'').toLowerCase();
+      }
+    }catch(_){}
+    try{
+      const c = window.__supa || null;
+      if (c && c.auth && c.auth.getSession){
+        const { data } = await c.auth.getSession();
+        const e = data && data.session && data.session.user ? data.session.user.email : '';
+        return (e||'').toLowerCase();
+      }
+    }catch(_){}
+    return '';
   }
 
-  // 由于☁️是动态节点，持续监听直到绑定成功
-  const mo = new MutationObserver(()=>attachHold());
-  mo.observe(document.body,{childList:true,subtree:true});
-  window.addEventListener('load', ()=>setTimeout(attachHold, 50));
-  attachHold();
+  async function gateAdminButton(){
+    const btns = Array.from(document.querySelectorAll('.cloud-addon-card button, button'));
+    const adminBtn = btns.find(b => (b.textContent||'').includes('管理员'));
+    if(!adminBtn) return;
+
+    const email = await getEmailSafe();
+    const isAdmin = email === ADMIN_EMAIL;
+
+    if (adminBtn.__gated) return;
+    adminBtn.__gated = true;
+
+    if (!isAdmin){
+      // 更产品的表现：直接隐藏入口
+      adminBtn.style.display = 'none';
+      // 如需“可见但不可点”，改为：
+      // adminBtn.disabled = true;
+      // adminBtn.style.opacity = '0.5';
+      // adminBtn.title = '仅管理员可用';
+    }
+  }
+
+  gateAdminButton();
+  new MutationObserver(()=>gateAdminButton()).observe(document.body, {childList:true, subtree:true});
 })();
 </script>
 
