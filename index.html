@@ -1788,7 +1788,6 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 
 <div class="cloud-addon-panel">
   <div class="cloud-addon-card" id="addon-card">
-  <div class="cloud-addon-card" id="addon-card">
     <button id="btnCloudLogin">🔐 登录</button>
     <button id="btnCloudLogout">🚪 退出</button>
     <button id="btnCloudSave">⬆️ 保存到云端</button>
@@ -1825,8 +1824,6 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       </details>
     </div>
   </div>
-  <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
-</div>
   <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
 </div>
 
@@ -2031,115 +2028,7 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }catch(e){}
 
-  function makeBtn(text,bg){
-    const b=document.createElement('button');
-    b.type='button';
-    b.innerHTML=text;
-    b.style.cssText='border:none;border-radius:999px;padding:10px 18px;font-weight:800;color:#fff;background:'+bg+';display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap';
-    return b;
-  }
-
-  const btnSave = makeBtn('', '#22c55e');
-  const btnLoad = makeBtn('', '#3b82f6');
-  btnSave.addEventListener('click', function(){ window.saveSnapshotToCloud && window.saveSnapshotToCloud(); });
-  btnLoad.addEventListener('click', function(){ window.loadSnapshotFromCloud && window.loadSnapshotFromCloud(); });
-
-  // 定位“总利润”卡片
-  let card=null;
-  const divs=document.querySelectorAll('div');
-  for(let i=0;i<divs.length;i++){
-    const t=(divs[i].innerText||'');
-    if(t.includes('总利润') && t.includes('￥')){ card=divs[i]; break; }
-  }
-
-  function placeIntoCard(c){
-    let row=c.querySelector('.top-cloud-actions');
-    if(!row){
-      row=document.createElement('div');
-      row.className='top-cloud-actions';
-      row.style.cssText='position:absolute;right:20px;top:24px;display:flex;gap:14px;z-index:20';
-      if(getComputedStyle(c).position==='static') c.style.position='relative';
-      c.appendChild(row);
-    }
-    if(!row.contains(btnSave)) row.appendChild(btnSave);
-    if(!row.contains(btnLoad)) row.appendChild(btnLoad);
-  }
-
-  if(card){ placeIntoCard(card); }
-  else{
-    const box=document.createElement('div');
-    box.style.cssText='position:fixed;right:16px;top:120px;z-index:99999;display:flex;gap:10px';
-    box.appendChild(btnSave);
-    box.appendChild(btnLoad);
-    document.body.appendChild(box);
-  }
-});
-</script>
-
-
-<script>
-/* ======== 官方地基 API：云端快照（修正版：对齐 orders / localStorage / upsert） ======== */
-(function(){
-  function getClient(){ return window.__supa || null; }
-  const LS_KEY = 'orderProfitData';
-
-  function getOrders(){
-    try{ return (typeof orders !== 'undefined') ? orders : (JSON.parse(localStorage.getItem(LS_KEY))||[]); }
-    catch(e){ return []; }
-  }
-  function setOrders(next){
-    try{
-      if(typeof orders !== 'undefined'){ orders = Array.isArray(next) ? next : []; }
-      localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(next)?next:[]));
-    }catch(e){}
-    if(typeof render === 'function') render();
-  }
-
-  window.saveSnapshotToCloud = async function saveSnapshotToCloud(){
-    if(!window.__isLoggedIn){ alert('请先登录'); return; }
-    if(!confirm('是否确认用【当前本地数据】覆盖云端？')) return;
-
-    const client = getClient();
-    if(!client){ alert('Supabase 未初始化'); return; }
-
-    const { data:u, error:ue } = await client.auth.getUser();
-    if(ue || !u?.user){ alert('无法获取用户'); return; }
-
-    const payload = { id: u.user.id, data: getOrders() };
-
-    // 用 upsert：不存在就创建，存在就覆盖（避免 update 0 行“成功但没变化”）
-    const { error } = await client
-      .from('app_state_user')
-      .upsert(payload, { onConflict: 'id' });
-
-    if(error){ alert('保存失败：' + error.message); return; }
-    alert('已保存到云端');
-  };
-
-  window.loadSnapshotFromCloud = async function loadSnapshotFromCloud(){
-    if(!window.__isLoggedIn){ alert('请先登录'); return; }
-
-    const client = getClient();
-    if(!client){ alert('Supabase 未初始化'); return; }
-
-    const { data:u, error:ue } = await client.auth.getUser();
-    if(ue || !u?.user){ alert('无法获取用户'); return; }
-
-    const { data, error } = await client
-      .from('app_state_user')
-      .select('data')
-      .eq('id', u.user.id)
-      .maybeSingle();
-
-    if(error){ alert('拉取失败：' + error.message); return; }
-    if(!data || data.data == null){ alert('云端暂无数据'); return; }
-
-    if(!confirm('云端数据将【覆盖当前本地数据】，是否确认？')) return;
-
-    setOrders(data.data);
-    alert('已从云端拉取');
-  };
-})();
+  
 </script>
 
 
