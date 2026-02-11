@@ -2906,7 +2906,7 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 
 <div id="versionBadge">
-  VERSION: MENU_FIXED_V5
+  VERSION: MENU_FIXED_V6_DEPLOY
 </div>
 
 
@@ -2952,60 +2952,70 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 
+
 <script>
-/* === 菜单真正“固定”：用 absolute + scroll 同步（可穿透 transform 祖先导致 fixed 失效） === */
+/* === MENU_FIXED_V6：部署环境固定菜单（把节点移到 document.body，彻底摆脱 transform 容器） === */
 (function(){
-  const baseTop = 50;   // 顶部距离
-  const rightGap = 16;
+  const baseTop = 50;
+  const gap = 16;
 
-  function ensureBtn(){
-    return document.getElementById('menuFixedBtn') || document.querySelector('.cloud-addon-toggle');
-  }
-
-  function apply(){
-    const btn = ensureBtn();
-    const card = document.getElementById('addon-card');
+  function topPx(){
     const vv = window.visualViewport;
+    return (vv ? vv.offsetTop : 0) + baseTop;
+  }
 
-    const topInViewport = (vv ? (vv.offsetTop + baseTop) : baseTop);
-    const docTop = window.scrollY + topInViewport;
-
-    if(btn){
-      btn.style.position = 'absolute';
-      btn.style.right = rightGap + 'px';
-      btn.style.top = docTop + 'px';
-      btn.style.left = 'auto';
-      btn.style.bottom = 'auto';
-      btn.style.zIndex = 2147483647;
+  function ensure(){
+    const card = document.getElementById('addon-card');
+    if(card && card.parentElement !== document.body){
+      document.body.appendChild(card);
     }
+
+    let btn = document.getElementById('menuFixedBtn');
+    if(!btn){
+      btn = document.createElement('div');
+      btn.id = 'menuFixedBtn';
+      btn.textContent = '菜单';
+      document.body.appendChild(btn);
+
+      btn.addEventListener('click', () => {
+        const c = document.getElementById('addon-card');
+        if(!c) return;
+        const isOpen = (c.style.display === 'block');
+        c.style.display = isOpen ? 'none' : 'block';
+      });
+
+      document.addEventListener('click', (e) => {
+        const c = document.getElementById('addon-card');
+        if(!c || c.style.display !== 'block') return;
+        if(e.target === btn) return;
+        if(c.contains(e.target)) return;
+        c.style.display = 'none';
+      }, true);
+    }
+
+    const t = topPx();
+    btn.style.top = t + 'px';
+    btn.style.right = gap + 'px';
+
     if(card){
-      card.style.position = 'absolute';
-      card.style.right = rightGap + 'px';
-      card.style.top = (docTop + 48) + 'px';
-      card.style.left = 'auto';
+      card.style.top = (t + 56) + 'px';
+      card.style.right = gap + 'px';
       card.style.bottom = 'auto';
-      card.style.zIndex = 2147483646;
+      card.style.left = 'auto';
+      if(!card.style.display) card.style.display = 'none';
     }
   }
 
-  // 高频滚动：用 rAF 合并
-  let ticking=false;
-  function req(){
-    if(ticking) return;
-    ticking=true;
-    requestAnimationFrame(()=>{ ticking=false; apply(); });
+  function bindVV(){
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize', ensure, {passive:true});
+      window.visualViewport.addEventListener('scroll', ensure, {passive:true});
+    }
+    window.addEventListener('resize', ensure, {passive:true});
   }
 
-  window.addEventListener('scroll', req, {passive:true});
-  window.addEventListener('resize', req, {passive:true});
-  window.addEventListener('load', ()=> setTimeout(apply, 0));
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', req, {passive:true});
-    window.visualViewport.addEventListener('scroll', req, {passive:true});
-  }
-
-  // 若 DOM 后插入，补一次
-  const mo = new MutationObserver(()=>req());
+  window.addEventListener('load', () => { ensure(); bindVV(); });
+  const mo = new MutationObserver(()=>ensure());
   mo.observe(document.documentElement, {childList:true, subtree:true});
 })();
 </script>
