@@ -1002,6 +1002,19 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
   opacity: .85;
 }
 
+
+
+/* === 登录打开时：压住菜单面板，避免遮挡/误触 === */
+#loginBackdrop{ z-index: 2147483647 !important; }
+body.login-open .cloud-addon-panel{
+  z-index: 2147483646 !important;
+  pointer-events: none !important; /* 防止菜单层吃掉输入点击 */
+  opacity: .15;
+}
+body.login-open .cloud-addon-card{
+  display: none !important; /* 直接隐藏菜单卡片，最稳 */
+}
+
 </style>
 </head>
 <body>
@@ -3057,21 +3070,25 @@ const btnRefresh = document.getElementById("adminRefresh");
   const mo = new MutationObserver(() => {
     const visible = box.style.display !== 'none';
     if(visible){
+      document.body.classList.add('login-open');
       showBackdrop();
       centerBox();
       setTimeout(centerBox, 0);
     }else{
+      document.body.classList.remove('login-open');
       hideBackdrop();
     }
   });
   mo.observe(box, { attributes:true, attributeFilter:['style','class'] });
 
   // Clicking backdrop cancels login UI
-  backdrop.addEventListener('click', () => {
-    const cancel = document.getElementById('loginCancel');
-    if(cancel) cancel.click();
-    else box.style.display = 'none';
-  });
+  backdrop.addEventListener('click', (e) => {
+  // 只在点到遮罩本身时关闭（避免点输入框/按钮触发关闭）
+  if(e && e.target !== backdrop) return;
+  const cancel = document.getElementById('loginCancel');
+  if(cancel) cancel.click();
+  else box.style.display = 'none';
+});
 
   // Keep centered while keyboard opens/closes
   if(window.visualViewport){
@@ -3305,6 +3322,23 @@ const btnRefresh = document.getElementById("adminRefresh");
   });
 
   var mo = new MutationObserver(function(){ ensureLoginModalParent(); });
+  mo.observe(document.documentElement, {subtree:true, childList:true});
+})();
+</script>
+
+
+<script>
+/* === 登录框点击不冒泡：避免误触关闭 === */
+(function(){
+  function bindStop(){
+    var box = document.getElementById('loginBox');
+    if(!box || box.__stopBound) return;
+    box.__stopBound = true;
+    box.addEventListener('click', function(e){ e.stopPropagation(); }, true);
+    box.addEventListener('touchstart', function(e){ e.stopPropagation(); }, true);
+  }
+  document.addEventListener('DOMContentLoaded', bindStop);
+  var mo = new MutationObserver(bindStop);
   mo.observe(document.documentElement, {subtree:true, childList:true});
 })();
 </script>
