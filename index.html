@@ -699,6 +699,33 @@
   display:none;
 }
 
+
+/* === 菜单按钮：不悬浮（随页面滚动）+ 缩小20px === */
+.cloud-addon-toggle{
+  width:36px !important;
+  height:36px !important;
+  border-radius:12px !important;
+  font-size:14px !important;
+  line-height:1 !important;
+}
+
+/* 面板/卡片：绝对定位覆盖层（弹开不影响页面布局，不推挤内容） */
+.cloud-addon-panel{
+  position: absolute !important;
+  right: 16px !important;
+  top: 50px !important;
+  bottom: auto !important;
+  left: auto !important;
+}
+.cloud-addon-card{
+  position: absolute !important;
+  right: 16px !important;
+  top: 96px !important; /* 50 + 36 + 10 */
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 99998 !important;
+}
+
 </style>
 </head>
 <body>
@@ -2845,6 +2872,52 @@ const btnRefresh = document.getElementById("adminRefresh");
     e.preventDefault();
     copyText(btn.dataset.copy || 'pinking0000');
   });
+})();
+</script>
+
+
+<script>
+/* === 菜单：锁定为页面元素（随页面滚动，不悬浮）；弹开不影响页面布局 === */
+(function(){
+  const RIGHT = 16;
+  const TOP = 50;
+  const GAP = 10;
+  const BTN = 36;
+
+  function apply(){
+    const t = document.querySelector('.cloud-addon-toggle');
+    const card = document.querySelector('.cloud-addon-card');
+    const panel = document.querySelector('.cloud-addon-panel');
+    if(panel){
+      panel.style.position = 'absolute';
+      panel.style.right = RIGHT + 'px';
+      panel.style.top = TOP + 'px';
+      panel.style.left = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.transform = 'none';
+    }
+    if(t){
+      t.style.position = 'absolute';
+      t.style.right = RIGHT + 'px';
+      t.style.top = TOP + 'px';
+      t.style.left = 'auto';
+      t.style.bottom = 'auto';
+      t.style.transform = 'none'; // 禁止跟随 transform 重算漂移
+    }
+    if(card){
+      card.style.position = 'absolute';
+      card.style.right = RIGHT + 'px';
+      card.style.top = (TOP + BTN + GAP) + 'px';
+      card.style.left = 'auto';
+      card.style.bottom = 'auto';
+      card.style.transform = 'none';
+    }
+  }
+
+  window.addEventListener('load', () => { setTimeout(apply, 0); setTimeout(apply, 80); });
+
+  const mo = new MutationObserver(() => apply());
+  mo.observe(document.documentElement, {subtree:true, childList:true, attributes:true, attributeFilter:['style','class']});
 })();
 </script>
 
