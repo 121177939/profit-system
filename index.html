@@ -24,6 +24,62 @@
 </script>
 
 ﻿<!DOCTYPE html>
+
+<!--
+======================== 项目交接表（写入文件版） ========================
+系统：商业订单利润管理系统（单文件 HTML，无框架无构建）
+写入时间：2026-02-11
+
+0. 一句话总览
+- 本地为唯一真相；云端仅“手动快照”；不自动拉取/保存；UI 与云逻辑严格解耦。
+
+1. 唯一稳定基线
+- v15k 为唯一干净稳定可继续演进版本；禁止从 v15d/v22/v23 叠加。
+
+2. 三条铁律（绝对不能破）
+(1) 本地为本体：orders/计算结果只在本地；init/login/refresh/import 禁止自动云读写
+(2) 云端只做手动快照：仅允许通过 window.saveSnapshotToCloud() / window.loadSnapshotFromCloud()
+    ☁️/菜单面板只做入口，禁止直接 Supabase/直接读写 orders/绕过 API
+(3) 登录态恢复必须走 API：刷新/恢复必须 __setLoginState(true)，禁止只改 __isLoggedIn
+
+3. ☁️/菜单按钮关键机制
+- ☁️/按钮为 JS 动态插入，位置脚本反复重算；纯 CSS top/font-size 多数无效
+- 唯一跨浏览器稳定方案：MutationObserver 捕获真实节点 + 读取 computed transform + 在 transform 后叠加
+- 禁止包裹按钮 DOM（会导致按钮消失）
+- 本轮定版：仅将显示文案从“☁️”改为“菜单”，保持原按钮点击/定位机制不变
+
+4. 管理员系统（已接通可用）
+- 管理员邮箱：912872449@qq.com
+- 未登录管理员账号：管理员入口隐藏
+- 功能：新建账号 / 删除账号 / 重置密码 / 展示账号列表 / 禁用/解禁登录（user_profiles.disabled）
+- 原则：仅手动点击触发；不在页面加载时自动请求云端；不触碰 orders
+
+5. 云快照（稳定）
+- 保存/拉取均为“手动触发”；需保持本地 orders 一致性完整恢复
+
+6. 登录 UI（体验优化）
+- 登录弹窗居中、按钮统一风格
+- 推荐使用 App Toast 替代 alert（避免浏览器系统弹窗）
+
+7. 管理员联系入口
+- 登录弹窗加入：联系管理员vx：pinking0000（点我复制）
+
+8. 踩坑记录
+- 新造“菜单按钮”在移动端常点不到（遮挡/事件被吃）；最稳是复用 v15k 原生插入按钮节点
+- “不要悬浮”= 页面滑下去按钮也要一起滑走（随页面滚动）
+
+9. 下一步建议
+P0：统一提示入口（替换残留 alert 为 Toast）
+P1：继续做视觉/动效（只改 transform/opacity/阴影，不改布局）
+P2：管理员列表搜索/排序/快速禁用等（仍全部手动触发）
+
+10. 禁止事项（再强调）
+- 禁止自动云端拉取/保存；禁止页面加载触发 Supabase 请求；
+- 禁止主界面出现额外云按钮；禁止包裹按钮 DOM；禁止绕过 __setLoginState
+
+======================== /项目交接表（写入文件版） =======================
+-->
+
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -896,59 +952,6 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
     transition: none !important;
     scroll-behavior: auto !important;
   }
-}
-
-
-/* === vx 显示：更小、更居中 === */
-.login-contact{
-  justify-content: center !important;
-  text-align: center !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  margin: 8px 0 10px !important;
-  gap: 8px !important;
-}
-.login-contact-label{
-  font-size: 13px !important;
-  opacity: .85 !important;
-}
-.login-contact-copy{
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: auto !important;
-  max-width: 92% !important;
-  padding: 8px 14px !important;
-  border-radius: 14px !important;
-  font-size: 15px !important;
-  font-weight: 800 !important;
-  letter-spacing: .2px !important;
-  border-style: solid !important;
-}
-
-
-/* === APP Toast（替代 alert） === */
-#appToast{
-  position: fixed;
-  left: 50%;
-  top: 18px;
-  transform: translateX(-50%) translateY(-6px);
-  background: rgba(17,24,39,.92);
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: .2px;
-  z-index: 2147483647;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms cubic-bezier(.2,.8,.2,1), transform 180ms cubic-bezier(.2,.8,.2,1);
-  box-shadow: 0 14px 40px rgba(17,24,39,.18);
-}
-#appToast.show{
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
 </style>
@@ -2814,7 +2817,7 @@ async function doLogin(email, pw){
       refreshAdminVisibility();
       await checkProfileAndMaybeKick(user);
       hideLoginBox();
-      __showAppToast('登录成功');
+      alert("登录成功");
     } catch(e) {
       showLoginMsg("登录失败：" + (e?.message || e));
     } finally{
@@ -3217,22 +3220,6 @@ const btnRefresh = document.getElementById("adminRefresh");
   }else{
     window.addEventListener('DOMContentLoaded', ()=> setTimeout(ready, 0));
   }
-})();
-</script>
-
-<div id="appToast"></div>
-
-<script>
-/* === Toast API === */
-(function(){
-  window.__showAppToast = function(msg){
-    const t = document.getElementById('appToast');
-    if(!t) { try{ console.log('[toast]', msg); }catch(e){}; return; }
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(t.__timer);
-    t.__timer = setTimeout(()=>t.classList.remove('show'), 1200);
-  };
 })();
 </script>
 
