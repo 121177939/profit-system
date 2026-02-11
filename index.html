@@ -675,14 +675,6 @@
 }
 
 
-/* === 菜单按钮固定在右上角 === */
-.cloud-addon-panel{
-  position: fixed !important;
-  right: 16px !important;
-  top: 50px !important;
-  bottom: auto !important;
-}
-
 </style>
 </head>
 <body>
@@ -2782,6 +2774,73 @@ const btnRefresh = document.getElementById("adminRefresh");
   const obs=new MutationObserver(applyAdminBtnStyles);
   obs.observe(document.body,{subtree:true,childList:true});
   window.addEventListener('load', applyAdminBtnStyles);
+})();
+</script>
+
+
+<script>
+/* === 固定“菜单”按钮：沿用 v15k 的 transform 叠加机制（不包 DOM，不靠 top） === */
+(function () {
+  function getTargetTop() {
+    // 兼容移动端地址栏收起/展开导致的 visualViewport 偏移
+    const vv = window.visualViewport;
+    const base = 50; // 距离可视区顶部 50px（你之前的定版值）
+    return vv ? (vv.offsetTop + base) : base;
+  }
+
+  function applyTopRightOffset(node) {
+    if (!node) return;
+    // 读取当前最终 transform（由系统逻辑算出的）
+    const base = node.dataset.__menuBaseTransform || node.style.transform || getComputedStyle(node).transform || '';
+    const rect = node.getBoundingClientRect();
+
+    const targetTop = getTargetTop();
+    const targetRightGap = 16;
+
+    const dx = (window.innerWidth - targetRightGap) - rect.right;
+    const dy = targetTop - rect.top;
+
+    const baseClean = (base && base !== 'none') ? base : '';
+    node.style.transform = baseClean + ` translate(${dx}px, ${dy}px)`;
+  }
+
+  function hook(node) {
+    if (!node || node.dataset.__menuPinned) return;
+    node.dataset.__menuPinned = '1';
+    // 首次捕获：把当前 transform 作为 base，避免叠加越走越远
+    node.dataset.__menuBaseTransform = node.style.transform || '';
+    requestAnimationFrame(() => applyTopRightOffset(node));
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
+      vv.addEventListener('scroll', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
+    }
+    window.addEventListener('resize', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
+    // 有些浏览器滚动时可视区变化会让位置漂移，这里同步拉回
+    window.addEventListener('scroll', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
+  }
+
+  // 如果存在 v15k 的定位入口，包一层（最稳）
+  const orig = window.__applyCloudTransform;
+  if (typeof orig === 'function') {
+    window.__applyCloudTransform = function (node) {
+      orig(node);
+      node.dataset.__menuBaseTransform = node.style.transform || '';
+      requestAnimationFrame(() => applyTopRightOffset(node));
+    };
+  }
+
+  // 无论如何，确保捕获到真实按钮节点
+  const findBtn = () => document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-addon-toggle');
+  const btn0 = findBtn();
+  if (btn0) hook(btn0);
+
+  const mo = new MutationObserver(() => {
+    const btn = findBtn();
+    if (btn) hook(btn);
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
 })();
 </script>
 
