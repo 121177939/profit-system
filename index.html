@@ -662,6 +662,33 @@
 }
 
 </style>
+
+<style id="cloud-fixed-css">
+/* === Hard-fix: pin ☁️ button & panel to viewport (no scrolling) === */
+#addon-toggle{
+  position:fixed !important;
+  top:50px !important;
+  right:16px !important;
+  left:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  z-index: 99999 !important;
+  will-change: transform;
+}
+#addon-card{
+  position:fixed !important;
+  top:120px !important;
+  right:16px !important;
+  left:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  z-index: 99998 !important;
+  max-height: 70vh;
+  overflow:auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* If any ancestor applies transform causing fixed to behave like absolute, we re-parent in JS below. */
+</style>
 </head>
 <body>
 
@@ -2689,7 +2716,106 @@ const btnRefresh = document.getElementById("adminRefresh");
   function applyAdminBtnStyles(){
     const map = [
       {id:'adminCreateUserBtn', bg:'rgba(34,197,94,.14)', bd:'rgba(34,197,94,.45)', cl:'#065f46'},
-      {id:'adminResetPwdBtn',  bg:'rgba(59,130,246,.14)', bd:'rgba(59,130,246,.45)', cl:'#1e3a8a'},
+      {id:'adminResetPwdBtn',  bg:'rgba(59,130,246,.14)', bd:'rgba(59,130,246,.45)', c
+<script id="cloud-fixed-js">
+/* === Cloud pinning (safe, no loops, no business logic changes) === */
+(function(){
+  function setImportant(el, prop, val){
+    try{ el.style.setProperty(prop, val, 'important'); }catch(e){}
+  }
+
+  function applyPinnedStyles(toggle, card){
+    // Toggle pinned
+    setImportant(toggle,'position','fixed');
+    setImportant(toggle,'top','50px');
+    setImportant(toggle,'right','16px');
+    setImportant(toggle,'left','auto');
+    setImportant(toggle,'bottom','auto');
+    setImportant(toggle,'transform','none');
+    setImportant(toggle,'z-index','99999');
+
+    // Card pinned (below toggle)
+    setImportant(card,'position','fixed');
+    setImportant(card,'top','120px');
+    setImportant(card,'right','16px');
+    setImportant(card,'left','auto');
+    setImportant(card,'bottom','auto');
+    setImportant(card,'transform','none');
+    setImportant(card,'z-index','99998');
+  }
+
+  function enforcePinned(el){
+    let applying=false;
+    const mo = new MutationObserver(() => {
+      if(applying) return;
+      // prevent re-entrancy loops: disconnect -> apply -> reconnect
+      mo.disconnect();
+      applying=true;
+      try{
+        if(el.id === 'addon-toggle'){
+          setImportant(el,'position','fixed');
+          setImportant(el,'top','50px');
+          setImportant(el,'right','16px');
+          setImportant(el,'left','auto');
+          setImportant(el,'bottom','auto');
+          setImportant(el,'transform','none');
+          setImportant(el,'z-index','99999');
+        }else if(el.id === 'addon-card'){
+          setImportant(el,'position','fixed');
+          setImportant(el,'top','120px');
+          setImportant(el,'right','16px');
+          setImportant(el,'left','auto');
+          setImportant(el,'bottom','auto');
+          setImportant(el,'transform','none');
+          setImportant(el,'z-index','99998');
+        }
+      }finally{
+        applying=false;
+        mo.observe(el, {attributes:true, attributeFilter:['style','class']});
+      }
+    });
+    mo.observe(el, {attributes:true, attributeFilter:['style','class']});
+  }
+
+  function init(){
+    var toggle = document.getElementById('addon-toggle');
+    var card   = document.getElementById('addon-card');
+    if(!toggle || !card) return;
+
+    // Re-parent to body to escape any transformed ancestor that breaks fixed positioning
+    try{
+      if(toggle.parentElement !== document.body) document.body.appendChild(toggle);
+      if(card.parentElement !== document.body) document.body.appendChild(card);
+    }catch(e){}
+
+    applyPinnedStyles(toggle, card);
+
+    // Enforce pinned even if some legacy script tries to rewrite styles/transform
+    enforcePinned(toggle);
+    enforcePinned(card);
+
+    // Also re-apply on scroll/resize (no rect math, just hard set)
+    var raf = 0;
+    function kick(){
+      if(raf) return;
+      raf = requestAnimationFrame(function(){
+        raf = 0;
+        applyPinnedStyles(toggle, card);
+      });
+    }
+    window.addEventListener('scroll', kick, {passive:true});
+    window.addEventListener('resize', kick, {passive:true});
+    toggle.addEventListener('click', kick, {passive:true});
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  }else{
+    init();
+  }
+})();
+</script>
+l:'#1e3a8a'},
       {id:'adminDeleteUserBtn',bg:'rgba(239,68,68,.14)', bd:'rgba(239,68,68,.55)', cl:'#991b1b'}
     ];
     map.forEach(x=>{
@@ -2709,70 +2835,6 @@ const btnRefresh = document.getElementById("adminRefresh");
   const obs=new MutationObserver(applyAdminBtnStyles);
   obs.observe(document.body,{subtree:true,childList:true});
   window.addEventListener('load', applyAdminBtnStyles);
-})();
-</script>
-
-
-<style>
-/* ===== Cloud button hard-fix: pin to viewport top-right (no scroll drift) ===== */
-.cloud-addon-panel{
-  position: fixed !important;
-  top: 50px !important;
-  right: 16px !important;
-  bottom: auto !important;
-  left: auto !important;
-  transform: none !important;
-  will-change: transform;
-}
-.cloud-addon-card{
-  position: fixed !important;
-  top: 120px !important;
-  right: 16px !important;
-  bottom: auto !important;
-  left: auto !important;
-  transform: none !important;
-}
-</style>
-
-<script>
-/* ===== Cloud pin patch (safe): no observers on style, no transform stacking ===== */
-(function(){
-  function pin(){
-    const panel = document.querySelector('.cloud-addon-panel');
-    if(!panel) return;
-    // Move to body to avoid transformed ancestors breaking position:fixed
-    if(panel.parentElement !== document.body){
-      document.body.appendChild(panel);
-    }
-    panel.style.position = 'fixed';
-    panel.style.top = '50px';
-    panel.style.right = '16px';
-    panel.style.bottom = 'auto';
-    panel.style.left = 'auto';
-    panel.style.transform = 'none';
-
-    const card = panel.querySelector('.cloud-addon-card') || document.getElementById('addon-card');
-    if(card){
-      card.style.position = 'fixed';
-      card.style.top = '120px';
-      card.style.right = '16px';
-      card.style.bottom = 'auto';
-      card.style.left = 'auto';
-      card.style.transform = 'none';
-    }
-  }
-
-  // run after DOM ready
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', pin, { once:true });
-  } else {
-    pin();
-  }
-
-  // lightweight re-pin on scroll/resize and occasional sanity check
-  window.addEventListener('scroll', () => { requestAnimationFrame(pin); }, { passive:true });
-  window.addEventListener('resize', () => { requestAnimationFrame(pin); }, { passive:true });
-  setInterval(pin, 1500);
 })();
 </script>
 
