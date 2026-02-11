@@ -596,22 +596,6 @@
             }
         }
     
-
-/* === Cloud panel: anchor to page (NOT floating with scroll) === */
-.cloud-addon-panel{
-  position: absolute !important;
-  right: 16px !important;
-  top: 50px !important;
-  bottom: auto !important;
-}
-.cloud-addon-card{
-  position: absolute !important;
-  right: 0 !important;
-  top: 64px !important; /* below the ☁️ button */
-  bottom: auto !important;
-}
-
-
 /* ===== 管理员面板：三按钮并排 ===== */
 #adminPanel .admin-action-row{display:flex; gap:12px; align-items:stretch;}
 #adminPanel .admin-action-row button{flex:1; margin:0 !important;}
@@ -675,6 +659,19 @@
   background:#fff;
   color:#111827;
   border:1px solid rgba(17,24,39,.25);
+}
+
+
+/* === ☁️ 改为文字菜单样式 === */
+.cloud-addon-toggle{
+  width:auto !important;
+  height:auto !important;
+  padding:8px 14px !important;
+  border-radius:10px !important;
+  font-size:15px !important;
+  background:#111827 !important;
+  color:#ffffff !important;
+  box-shadow:none !important;
 }
 
 </style>
@@ -1983,7 +1980,7 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       </details>
     </div>
   </div>
-  <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
+  <div class="cloud-addon-toggle" id="addon-toggle">菜单</div>
 </div>
 
 <script>
@@ -2776,40 +2773,6 @@ const btnRefresh = document.getElementById("adminRefresh");
   const obs=new MutationObserver(applyAdminBtnStyles);
   obs.observe(document.body,{subtree:true,childList:true});
   window.addEventListener('load', applyAdminBtnStyles);
-})();
-</script>
-
-
-<script>
-/* === Anchor ☁️ to current page position (scrolls away, no floating) === */
-(function(){
-  function pinOnce(){
-    const panel = document.querySelector('.cloud-addon-panel');
-    if(!panel) return;
-    if(panel.dataset.__pinnedToPage) return;
-
-    // Pin at current visual position in the document:
-    // top = current scrollY + 50 (so it stays where you see it now)
-    const topDoc = window.scrollY + 50;
-    panel.style.position = 'absolute';
-    panel.style.right = '16px';
-    panel.style.top = topDoc + 'px';
-    panel.style.bottom = 'auto';
-    panel.dataset.__pinnedToPage = '1';
-  }
-
-  // Run after load and after any late DOM insertion
-  window.addEventListener('load', () => setTimeout(pinOnce, 0));
-  const mo = new MutationObserver(() => pinOnce());
-  mo.observe(document.documentElement, {childList:true, subtree:true});
-
-  // If orientation/viewport width changes, keep it at the same document top (do not follow scroll)
-  window.addEventListener('resize', () => {
-    const panel = document.querySelector('.cloud-addon-panel');
-    if(panel && panel.dataset.__pinnedToPage){
-      panel.style.right = '16px';
-    }
-  }, {passive:true});
 })();
 </script>
 
