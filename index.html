@@ -954,6 +954,54 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
   }
 }
 
+
+/* === 登录弹窗：居中对齐（稳定版） === */
+#loginBackdrop{
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+#loginBackdrop.show{ display:flex; }
+
+/* 登录盒子在遮罩里居中，不依赖 left/top */
+#loginBox{
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+/* 美化：成功提示弹窗（替代 alert） */
+#appNotice{
+  position: fixed;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  min-width: min(88vw, 360px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(17,24,39,.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 18px 55px rgba(0,0,0,.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms var(--fx-ease), transform 180ms var(--fx-ease);
+}
+#appNotice.show{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+#appNotice .sub{
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: .85;
+}
+
 </style>
 </head>
 <body>
@@ -2819,7 +2867,7 @@ async function doLogin(email, pw){
       refreshAdminVisibility();
       await checkProfileAndMaybeKick(user);
       hideLoginBox();
-      alert("登录成功");
+      window.showAppNotice && window.showAppNotice("登录成功", "已开启功能权限");
     } catch(e) {
       showLoginMsg("登录失败：" + (e?.message || e));
     } finally{
@@ -2999,10 +3047,10 @@ const btnRefresh = document.getElementById("adminRefresh");
   }
 
   function showBackdrop(){
-    backdrop.style.display = 'block';
+    backdrop.classList.add('show');
   }
   function hideBackdrop(){
-    backdrop.style.display = 'none';
+    backdrop.classList.remove('show');
   }
 
   // Detect show/hide by observing display style changes
@@ -3222,6 +3270,42 @@ const btnRefresh = document.getElementById("adminRefresh");
   }else{
     window.addEventListener('DOMContentLoaded', ()=> setTimeout(ready, 0));
   }
+})();
+</script>
+
+
+<div id="appNotice"><div class="main"></div><div class="sub"></div></div>
+
+<script>
+/* === 登录框强制挂到遮罩层：确保真正居中（不受菜单卡片布局影响） + 美化提示 === */
+(function(){
+  function ensureLoginModalParent(){
+    var box = document.getElementById('loginBox');
+    var backdrop = document.getElementById('loginBackdrop');
+    if(!box || !backdrop) return;
+    if(box.parentNode !== backdrop){
+      try{ backdrop.appendChild(box); }catch(e){}
+    }
+  }
+
+  window.showAppNotice = function(title, subtitle){
+    var n = document.getElementById('appNotice');
+    if(!n) return;
+    var main = n.querySelector('.main') || n;
+    var sub  = n.querySelector('.sub');
+    if(main) main.textContent = title || '';
+    if(sub) sub.textContent = subtitle || '';
+    n.classList.add('show');
+    clearTimeout(n.__t);
+    n.__t = setTimeout(function(){ n.classList.remove('show'); }, 1400);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    ensureLoginModalParent();
+  });
+
+  var mo = new MutationObserver(function(){ ensureLoginModalParent(); });
+  mo.observe(document.documentElement, {subtree:true, childList:true});
 })();
 </script>
 
