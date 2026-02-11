@@ -706,6 +706,44 @@
   z-index: 2147483646 !important;
 }
 
+
+/* === 登录框：联系管理员（可复制） === */
+.login-contact{
+  margin: 6px 2px 10px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap: wrap;
+}
+.login-contact-label{
+  color: rgba(17,24,39,.75);
+  font-size: 13px;
+}
+.login-contact-copy{
+  border: 1px dashed rgba(17,24,39,.35);
+  background: rgba(17,24,39,.04);
+  color: #111827;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+.login-contact-copy:active{ transform: scale(.98); }
+#copyToast{
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  background: rgba(17,24,39,.92);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  z-index: 2147483647;
+  display:none;
+}
+
 </style>
 
 <style>
@@ -1979,6 +2017,12 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
     <button id="btnCloudLogin">🔐 登录</button>
     <div id="loginBox" class="login-box" style="display:none">
       <div class="login-title">登录云端</div>
+
+    <div class="login-contact">
+      <span class="login-contact-label">联系管理员vx：</span>
+      <button type="button" class="login-contact-copy" id="copyAdminVxBtn" data-copy="pinking0000">pinking0000（点我复制）</button>
+    </div>
+    
       <div class="login-field">
         <label>邮箱</label>
         <input id="loginEmail" type="email" placeholder="例如：123456@qq.com" autocomplete="username" />
@@ -2862,44 +2906,107 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 
 <div id="versionBadge">
-  VERSION: MENU_FIXED_V4
+  VERSION: MENU_FIXED_V5
 </div>
 
 
+<div id="copyToast">已复制：pinking0000</div>
+
 <script>
-/* === 稳定菜单位置：抵消手机浏览器地址栏收起/展开导致的 fixed 跳动 === */
+/* === 复制管理员微信号 === */
 (function(){
-  const baseTop = 50;   // 你定版的顶部距离
+  function showToast(){
+    const t = document.getElementById('copyToast');
+    if(!t) return;
+    t.style.display='block';
+    clearTimeout(t.__hideTimer);
+    t.__hideTimer = setTimeout(()=>{ t.style.display='none'; }, 1200);
+  }
+  async function copyText(txt){
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(txt);
+      }else{
+        const ta=document.createElement('textarea');
+        ta.value=txt;
+        ta.setAttribute('readonly','');
+        ta.style.position='fixed';
+        ta.style.left='-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      showToast();
+    }catch(e){
+      alert('复制失败，请手动复制：' + txt);
+    }
+  }
+  document.addEventListener('click', (e)=>{
+    const btn = e.target && e.target.closest && e.target.closest('#copyAdminVxBtn');
+    if(!btn) return;
+    e.preventDefault();
+    copyText(btn.dataset.copy || 'pinking0000');
+  });
+})();
+</script>
+
+
+<script>
+/* === 菜单真正“固定”：用 absolute + scroll 同步（可穿透 transform 祖先导致 fixed 失效） === */
+(function(){
+  const baseTop = 50;   // 顶部距离
   const rightGap = 16;
 
+  function ensureBtn(){
+    return document.getElementById('menuFixedBtn') || document.querySelector('.cloud-addon-toggle');
+  }
+
   function apply(){
-    const btn = document.getElementById('menuFixedBtn');
+    const btn = ensureBtn();
     const card = document.getElementById('addon-card');
     const vv = window.visualViewport;
-    const top = (vv ? (vv.offsetTop + baseTop) : baseTop);
+
+    const topInViewport = (vv ? (vv.offsetTop + baseTop) : baseTop);
+    const docTop = window.scrollY + topInViewport;
 
     if(btn){
-      btn.style.position = 'fixed';
+      btn.style.position = 'absolute';
       btn.style.right = rightGap + 'px';
-      btn.style.top = top + 'px';
+      btn.style.top = docTop + 'px';
+      btn.style.left = 'auto';
+      btn.style.bottom = 'auto';
+      btn.style.zIndex = 2147483647;
     }
     if(card){
-      card.style.position = 'fixed';
+      card.style.position = 'absolute';
       card.style.right = rightGap + 'px';
-      // 让卡片始终在按钮下方
-      card.style.top = (top + 48) + 'px';
+      card.style.top = (docTop + 48) + 'px';
+      card.style.left = 'auto';
       card.style.bottom = 'auto';
+      card.style.zIndex = 2147483646;
     }
   }
 
-  // 初次与持续更新
-  window.addEventListener('load', () => setTimeout(apply, 0));
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', apply, {passive:true});
-    window.visualViewport.addEventListener('scroll', apply, {passive:true});
+  // 高频滚动：用 rAF 合并
+  let ticking=false;
+  function req(){
+    if(ticking) return;
+    ticking=true;
+    requestAnimationFrame(()=>{ ticking=false; apply(); });
   }
-  window.addEventListener('resize', apply, {passive:true});
-  window.addEventListener('scroll', apply, {passive:true});
+
+  window.addEventListener('scroll', req, {passive:true});
+  window.addEventListener('resize', req, {passive:true});
+  window.addEventListener('load', ()=> setTimeout(apply, 0));
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', req, {passive:true});
+    window.visualViewport.addEventListener('scroll', req, {passive:true});
+  }
+
+  // 若 DOM 后插入，补一次
+  const mo = new MutationObserver(()=>req());
+  mo.observe(document.documentElement, {childList:true, subtree:true});
 })();
 </script>
 
