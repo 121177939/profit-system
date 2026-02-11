@@ -898,6 +898,59 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
   }
 }
 
+
+/* === vx 显示：更小、更居中 === */
+.login-contact{
+  justify-content: center !important;
+  text-align: center !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  margin: 8px 0 10px !important;
+  gap: 8px !important;
+}
+.login-contact-label{
+  font-size: 13px !important;
+  opacity: .85 !important;
+}
+.login-contact-copy{
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  max-width: 92% !important;
+  padding: 8px 14px !important;
+  border-radius: 14px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  letter-spacing: .2px !important;
+  border-style: solid !important;
+}
+
+
+/* === APP Toast（替代 alert） === */
+#appToast{
+  position: fixed;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%) translateY(-6px);
+  background: rgba(17,24,39,.92);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  z-index: 2147483647;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms cubic-bezier(.2,.8,.2,1), transform 180ms cubic-bezier(.2,.8,.2,1);
+  box-shadow: 0 14px 40px rgba(17,24,39,.18);
+}
+#appToast.show{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 </style>
 </head>
 <body>
@@ -2761,7 +2814,7 @@ async function doLogin(email, pw){
       refreshAdminVisibility();
       await checkProfileAndMaybeKick(user);
       hideLoginBox();
-      alert("登录成功");
+      __showAppToast('登录成功');
     } catch(e) {
       showLoginMsg("登录失败：" + (e?.message || e));
     } finally{
@@ -3164,6 +3217,22 @@ const btnRefresh = document.getElementById("adminRefresh");
   }else{
     window.addEventListener('DOMContentLoaded', ()=> setTimeout(ready, 0));
   }
+})();
+</script>
+
+<div id="appToast"></div>
+
+<script>
+/* === Toast API === */
+(function(){
+  window.__showAppToast = function(msg){
+    const t = document.getElementById('appToast');
+    if(!t) { try{ console.log('[toast]', msg); }catch(e){}; return; }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t.__timer);
+    t.__timer = setTimeout(()=>t.classList.remove('show'), 1200);
+  };
 })();
 </script>
 
