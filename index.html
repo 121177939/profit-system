@@ -1004,16 +1004,14 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
 
 
 
-/* === 登录打开时：压住菜单面板，避免遮挡/误触 === */
+/* === 登录打开时：隐藏菜单层，避免遮挡/误触（不影响登录按钮事件） === */
 #loginBackdrop{ z-index: 2147483647 !important; }
 body.login-open .cloud-addon-panel{
   z-index: 2147483646 !important;
-  pointer-events: none !important; /* 防止菜单层吃掉输入点击 */
-  opacity: .15;
+  pointer-events: none !important;
+  opacity: .12;
 }
-body.login-open .cloud-addon-card{
-  display: none !important; /* 直接隐藏菜单卡片，最稳 */
-}
+body.login-open .cloud-addon-card{ display:none !important; }
 
 </style>
 </head>
@@ -3083,12 +3081,12 @@ const btnRefresh = document.getElementById("adminRefresh");
 
   // Clicking backdrop cancels login UI
   backdrop.addEventListener('click', (e) => {
-  // 只在点到遮罩本身时关闭（避免点输入框/按钮触发关闭）
-  if(e && e.target !== backdrop) return;
-  const cancel = document.getElementById('loginCancel');
-  if(cancel) cancel.click();
-  else box.style.display = 'none';
-});
+    // 只点到遮罩空白处才关闭
+    if(e && e.target !== backdrop) return;
+const cancel = document.getElementById('loginCancel');
+    if(cancel) cancel.click();
+    else box.style.display = 'none';
+  });
 
   // Keep centered while keyboard opens/closes
   if(window.visualViewport){
@@ -3328,17 +3326,26 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 
 <script>
-/* === 登录框点击不冒泡：避免误触关闭 === */
+/* === 登录按钮/取消兜底绑定：防止某些浏览器事件丢失 === */
 (function(){
-  function bindStop(){
+  function bindOnce(){
     var box = document.getElementById('loginBox');
-    if(!box || box.__stopBound) return;
-    box.__stopBound = true;
-    box.addEventListener('click', function(e){ e.stopPropagation(); }, true);
-    box.addEventListener('touchstart', function(e){ e.stopPropagation(); }, true);
+    var cancel = document.getElementById('loginCancel');
+    var backdrop = document.getElementById('loginBackdrop');
+    if(!box || !cancel || !backdrop) return;
+
+    if(cancel.__bound) return;
+    cancel.__bound = true;
+
+    cancel.addEventListener('click', function(e){
+      e.preventDefault();
+      box.style.display = 'none';
+      backdrop.classList.remove('show');
+      document.body.classList.remove('login-open');
+    }, false);
   }
-  document.addEventListener('DOMContentLoaded', bindStop);
-  var mo = new MutationObserver(bindStop);
+  document.addEventListener('DOMContentLoaded', bindOnce);
+  var mo = new MutationObserver(bindOnce);
   mo.observe(document.documentElement, {subtree:true, childList:true});
 })();
 </script>
