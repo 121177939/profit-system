@@ -675,6 +675,37 @@
 }
 
 
+
+/* === 菜单：硬固定（独立节点，不受原 ☁️ 逻辑影响） === */
+#menuFixedBtn{
+  position: fixed;
+  right: 16px;
+  top: 50px;
+  z-index: 2147483647;
+  background: #111827;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+#menuFixedBtn:active{ transform: scale(.96); }
+
+/* 隐藏原来的开关按钮（但保留 DOM 供逻辑复用） */
+#addon-toggle{ display:none !important; }
+
+/* 让面板卡片固定在菜单下方（不随页面滚动漂移） */
+#addon-card{
+  position: fixed !important;
+  right: 16px !important;
+  top: 98px !important; /* 50 + 按钮高度/间距 */
+  bottom: auto !important;
+  z-index: 2147483646 !important;
+}
+
 </style>
 </head>
 <body>
@@ -2778,69 +2809,36 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 
+
 <script>
-/* === 固定“菜单”按钮：沿用 v15k 的 transform 叠加机制（不包 DOM，不靠 top） === */
-(function () {
-  function getTargetTop() {
-    // 兼容移动端地址栏收起/展开导致的 visualViewport 偏移
-    const vv = window.visualViewport;
-    const base = 50; // 距离可视区顶部 50px（你之前的定版值）
-    return vv ? (vv.offsetTop + base) : base;
+/* === 硬固定菜单按钮：点击打开/关闭原 addon-card === */
+(function(){
+  const card = document.getElementById('addon-card');
+  if(!card) return;
+
+  // Create fixed menu button
+  let btn = document.getElementById('menuFixedBtn');
+  if(!btn){
+    btn = document.createElement('div');
+    btn.id = 'menuFixedBtn';
+    btn.textContent = '菜单';
+    document.body.appendChild(btn);
   }
 
-  function applyTopRightOffset(node) {
-    if (!node) return;
-    // 读取当前最终 transform（由系统逻辑算出的）
-    const base = node.dataset.__menuBaseTransform || node.style.transform || getComputedStyle(node).transform || '';
-    const rect = node.getBoundingClientRect();
-
-    const targetTop = getTargetTop();
-    const targetRightGap = 16;
-
-    const dx = (window.innerWidth - targetRightGap) - rect.right;
-    const dy = targetTop - rect.top;
-
-    const baseClean = (base && base !== 'none') ? base : '';
-    node.style.transform = baseClean + ` translate(${dx}px, ${dy}px)`;
+  function toggle(){
+    const isOpen = (card.style.display === 'block');
+    card.style.display = isOpen ? 'none' : 'block';
   }
 
-  function hook(node) {
-    if (!node || node.dataset.__menuPinned) return;
-    node.dataset.__menuPinned = '1';
-    // 首次捕获：把当前 transform 作为 base，避免叠加越走越远
-    node.dataset.__menuBaseTransform = node.style.transform || '';
-    requestAnimationFrame(() => applyTopRightOffset(node));
+  btn.addEventListener('click', toggle);
 
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener('resize', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
-      vv.addEventListener('scroll', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
-    }
-    window.addEventListener('resize', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
-    // 有些浏览器滚动时可视区变化会让位置漂移，这里同步拉回
-    window.addEventListener('scroll', () => requestAnimationFrame(() => applyTopRightOffset(node)), { passive: true });
-  }
-
-  // 如果存在 v15k 的定位入口，包一层（最稳）
-  const orig = window.__applyCloudTransform;
-  if (typeof orig === 'function') {
-    window.__applyCloudTransform = function (node) {
-      orig(node);
-      node.dataset.__menuBaseTransform = node.style.transform || '';
-      requestAnimationFrame(() => applyTopRightOffset(node));
-    };
-  }
-
-  // 无论如何，确保捕获到真实按钮节点
-  const findBtn = () => document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-addon-toggle');
-  const btn0 = findBtn();
-  if (btn0) hook(btn0);
-
-  const mo = new MutationObserver(() => {
-    const btn = findBtn();
-    if (btn) hook(btn);
-  });
-  mo.observe(document.documentElement, { childList: true, subtree: true });
+  // Optional: click outside to close (mobile friendly)
+  document.addEventListener('click', (e) => {
+    if(card.style.display !== 'block') return;
+    if(e.target === btn) return;
+    if(card.contains(e.target)) return;
+    card.style.display = 'none';
+  }, true);
 })();
 </script>
 
