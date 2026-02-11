@@ -596,6 +596,22 @@
             }
         }
     
+
+/* === Cloud panel: anchor to page (NOT floating with scroll) === */
+.cloud-addon-panel{
+  position: absolute !important;
+  right: 16px !important;
+  top: 50px !important;
+  bottom: auto !important;
+}
+.cloud-addon-card{
+  position: absolute !important;
+  right: 0 !important;
+  top: 64px !important; /* below the ☁️ button */
+  bottom: auto !important;
+}
+
+
 /* ===== 管理员面板：三按钮并排 ===== */
 #adminPanel .admin-action-row{display:flex; gap:12px; align-items:stretch;}
 #adminPanel .admin-action-row button{flex:1; margin:0 !important;}
@@ -2670,12 +2686,6 @@ const btnRefresh = document.getElementById("adminRefresh");
     const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
     if (btn) requestAnimationFrame(() => applyTopRightOffset(btn));
   }, { passive: true });
-
-  // Keep cloud button fixed on scroll (some browsers/containers shift it while scrolling)
-  window.addEventListener('scroll', () => {
-    const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
-    if (btn) requestAnimationFrame(() => applyTopRightOffset(btn));
-  }, { passive: true });
 })();
 
 </script>
@@ -2766,6 +2776,40 @@ const btnRefresh = document.getElementById("adminRefresh");
   const obs=new MutationObserver(applyAdminBtnStyles);
   obs.observe(document.body,{subtree:true,childList:true});
   window.addEventListener('load', applyAdminBtnStyles);
+})();
+</script>
+
+
+<script>
+/* === Anchor ☁️ to current page position (scrolls away, no floating) === */
+(function(){
+  function pinOnce(){
+    const panel = document.querySelector('.cloud-addon-panel');
+    if(!panel) return;
+    if(panel.dataset.__pinnedToPage) return;
+
+    // Pin at current visual position in the document:
+    // top = current scrollY + 50 (so it stays where you see it now)
+    const topDoc = window.scrollY + 50;
+    panel.style.position = 'absolute';
+    panel.style.right = '16px';
+    panel.style.top = topDoc + 'px';
+    panel.style.bottom = 'auto';
+    panel.dataset.__pinnedToPage = '1';
+  }
+
+  // Run after load and after any late DOM insertion
+  window.addEventListener('load', () => setTimeout(pinOnce, 0));
+  const mo = new MutationObserver(() => pinOnce());
+  mo.observe(document.documentElement, {childList:true, subtree:true});
+
+  // If orientation/viewport width changes, keep it at the same document top (do not follow scroll)
+  window.addEventListener('resize', () => {
+    const panel = document.querySelector('.cloud-addon-panel');
+    if(panel && panel.dataset.__pinnedToPage){
+      panel.style.right = '16px';
+    }
+  }, {passive:true});
 })();
 </script>
 
