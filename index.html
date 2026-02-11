@@ -2862,8 +2862,46 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 
 <div id="versionBadge">
-  VERSION: MENU_FIXED_V3
+  VERSION: MENU_FIXED_V4
 </div>
+
+
+<script>
+/* === 稳定菜单位置：抵消手机浏览器地址栏收起/展开导致的 fixed 跳动 === */
+(function(){
+  const baseTop = 50;   // 你定版的顶部距离
+  const rightGap = 16;
+
+  function apply(){
+    const btn = document.getElementById('menuFixedBtn');
+    const card = document.getElementById('addon-card');
+    const vv = window.visualViewport;
+    const top = (vv ? (vv.offsetTop + baseTop) : baseTop);
+
+    if(btn){
+      btn.style.position = 'fixed';
+      btn.style.right = rightGap + 'px';
+      btn.style.top = top + 'px';
+    }
+    if(card){
+      card.style.position = 'fixed';
+      card.style.right = rightGap + 'px';
+      // 让卡片始终在按钮下方
+      card.style.top = (top + 48) + 'px';
+      card.style.bottom = 'auto';
+    }
+  }
+
+  // 初次与持续更新
+  window.addEventListener('load', () => setTimeout(apply, 0));
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', apply, {passive:true});
+    window.visualViewport.addEventListener('scroll', apply, {passive:true});
+  }
+  window.addEventListener('resize', apply, {passive:true});
+  window.addEventListener('scroll', apply, {passive:true});
+})();
+</script>
 
 </body>
 </html>
