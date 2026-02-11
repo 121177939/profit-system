@@ -662,33 +662,6 @@
 }
 
 </style>
-
-<style id="cloud-fixed-css">
-/* === Hard-fix: pin ☁️ button & panel to viewport (no scrolling) === */
-#addon-toggle{
-  position:fixed !important;
-  top:50px !important;
-  right:16px !important;
-  left:auto !important;
-  bottom:auto !important;
-  transform:none !important;
-  z-index: 99999 !important;
-  will-change: transform;
-}
-#addon-card{
-  position:fixed !important;
-  top:120px !important;
-  right:16px !important;
-  left:auto !important;
-  bottom:auto !important;
-  transform:none !important;
-  z-index: 99998 !important;
-  max-height: 70vh;
-  overflow:auto;
-  -webkit-overflow-scrolling: touch;
-}
-/* If any ancestor applies transform causing fixed to behave like absolute, we re-parent in JS below. */
-</style>
 </head>
 <body>
 
@@ -2651,6 +2624,63 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 <script>
+
+/* === cloud button reposition patch (top-right + 30px) ===
+   Keep v15k mechanism: do not wrap DOM, just append translate on top of final transform.
+*/
+(function () {
+  function applyTopRightOffset(node) {
+    // Base inline transform after v15k placement
+    const base = node.dataset.__cloudBaseTransform || node.style.transform || getComputedStyle(node).transform || '';
+    // Measure current rect
+    const rect = node.getBoundingClientRect();
+    const targetTop = 50;      // 30px from top
+    const targetRightGap = 16; // 16px from right edge
+
+    const dx = (window.innerWidth - targetRightGap) - rect.right;
+    const dy = targetTop - rect.top;
+
+    const baseClean = (base && base !== 'none') ? base : '';
+    node.style.transform = baseClean + ` translate(${dx}px, ${dy}px)`;
+  }
+
+  // Wrap v15k apply function if present
+  const orig = window.__applyCloudTransform;
+  if (typeof orig === 'function') {
+    window.__applyCloudTransform = function (node) {
+      orig(node);
+      // capture base inline transform produced by orig (avoid stacking)
+      node.dataset.__cloudBaseTransform = node.style.transform || '';
+      requestAnimationFrame(() => applyTopRightOffset(node));
+    };
+  } else {
+    // Fallback: observe for the cloud button and apply once
+    const mo = new MutationObserver(() => {
+      const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
+      if (!btn) return;
+      mo.disconnect();
+      requestAnimationFrame(() => applyTopRightOffset(btn));
+      window.addEventListener('resize', () => applyTopRightOffset(btn), { passive: true });
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  // Also re-apply on resize for safety (only when button exists)
+  window.addEventListener('resize', () => {
+    const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
+    if (btn) requestAnimationFrame(() => applyTopRightOffset(btn));
+  }, { passive: true });
+
+  // Keep cloud button fixed on scroll (some browsers/containers shift it while scrolling)
+  window.addEventListener('scroll', () => {
+    const btn = document.querySelector('#addon-toggle,[data-addon-toggle],.cloud-toggle,.cloud-btn');
+    if (btn) requestAnimationFrame(() => applyTopRightOffset(btn));
+  }, { passive: true });
+})();
+
+</script>
+
+<script>
 /* === Login modal viewport-centering patch (handles mobile keyboard) === */
 (function(){
   const box = document.getElementById('loginBox');
@@ -2716,106 +2746,7 @@ const btnRefresh = document.getElementById("adminRefresh");
   function applyAdminBtnStyles(){
     const map = [
       {id:'adminCreateUserBtn', bg:'rgba(34,197,94,.14)', bd:'rgba(34,197,94,.45)', cl:'#065f46'},
-      {id:'adminResetPwdBtn',  bg:'rgba(59,130,246,.14)', bd:'rgba(59,130,246,.45)', c
-<script id="cloud-fixed-js">
-/* === Cloud pinning (safe, no loops, no business logic changes) === */
-(function(){
-  function setImportant(el, prop, val){
-    try{ el.style.setProperty(prop, val, 'important'); }catch(e){}
-  }
-
-  function applyPinnedStyles(toggle, card){
-    // Toggle pinned
-    setImportant(toggle,'position','fixed');
-    setImportant(toggle,'top','50px');
-    setImportant(toggle,'right','16px');
-    setImportant(toggle,'left','auto');
-    setImportant(toggle,'bottom','auto');
-    setImportant(toggle,'transform','none');
-    setImportant(toggle,'z-index','99999');
-
-    // Card pinned (below toggle)
-    setImportant(card,'position','fixed');
-    setImportant(card,'top','120px');
-    setImportant(card,'right','16px');
-    setImportant(card,'left','auto');
-    setImportant(card,'bottom','auto');
-    setImportant(card,'transform','none');
-    setImportant(card,'z-index','99998');
-  }
-
-  function enforcePinned(el){
-    let applying=false;
-    const mo = new MutationObserver(() => {
-      if(applying) return;
-      // prevent re-entrancy loops: disconnect -> apply -> reconnect
-      mo.disconnect();
-      applying=true;
-      try{
-        if(el.id === 'addon-toggle'){
-          setImportant(el,'position','fixed');
-          setImportant(el,'top','50px');
-          setImportant(el,'right','16px');
-          setImportant(el,'left','auto');
-          setImportant(el,'bottom','auto');
-          setImportant(el,'transform','none');
-          setImportant(el,'z-index','99999');
-        }else if(el.id === 'addon-card'){
-          setImportant(el,'position','fixed');
-          setImportant(el,'top','120px');
-          setImportant(el,'right','16px');
-          setImportant(el,'left','auto');
-          setImportant(el,'bottom','auto');
-          setImportant(el,'transform','none');
-          setImportant(el,'z-index','99998');
-        }
-      }finally{
-        applying=false;
-        mo.observe(el, {attributes:true, attributeFilter:['style','class']});
-      }
-    });
-    mo.observe(el, {attributes:true, attributeFilter:['style','class']});
-  }
-
-  function init(){
-    var toggle = document.getElementById('addon-toggle');
-    var card   = document.getElementById('addon-card');
-    if(!toggle || !card) return;
-
-    // Re-parent to body to escape any transformed ancestor that breaks fixed positioning
-    try{
-      if(toggle.parentElement !== document.body) document.body.appendChild(toggle);
-      if(card.parentElement !== document.body) document.body.appendChild(card);
-    }catch(e){}
-
-    applyPinnedStyles(toggle, card);
-
-    // Enforce pinned even if some legacy script tries to rewrite styles/transform
-    enforcePinned(toggle);
-    enforcePinned(card);
-
-    // Also re-apply on scroll/resize (no rect math, just hard set)
-    var raf = 0;
-    function kick(){
-      if(raf) return;
-      raf = requestAnimationFrame(function(){
-        raf = 0;
-        applyPinnedStyles(toggle, card);
-      });
-    }
-    window.addEventListener('scroll', kick, {passive:true});
-    window.addEventListener('resize', kick, {passive:true});
-    toggle.addEventListener('click', kick, {passive:true});
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', init);
-  }else{
-    init();
-  }
-})();
-</script>
-l:'#1e3a8a'},
+      {id:'adminResetPwdBtn',  bg:'rgba(59,130,246,.14)', bd:'rgba(59,130,246,.45)', cl:'#1e3a8a'},
       {id:'adminDeleteUserBtn',bg:'rgba(239,68,68,.14)', bd:'rgba(239,68,68,.55)', cl:'#991b1b'}
     ];
     map.forEach(x=>{
@@ -2840,3 +2771,15 @@ l:'#1e3a8a'},
 
 </body>
 </html>
+
+
+
+
+
+
+<script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
