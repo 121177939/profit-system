@@ -662,40 +662,7 @@
 }
 
 
-/* === 菜单（随页面滚动，不悬浮）=== */
-#addon-toggle{ display:none !important; } /* 隐藏旧☁️按钮，避免位置重算干扰 */
-
-/* 顶部菜单按钮：锚定在页面顶部区域（absolute，所以你下滑它也会滑走） */
-#menuScrollBtn{
-  position: absolute;
-  right: 16px;
-  top: 50px;
-  z-index: 9999;
-  background: #111827;
-  color: #fff;
-  border-radius: 12px;
-  padding: 10px 16px;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: .5px;
-  line-height: 1;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 10px 22px rgba(17,24,39,.16);
-}
-#menuScrollBtn:active{ transform: scale(.96); }
-
-/* 菜单面板（原 addon-card）：也随页面滚动 */
-#addon-card{
-  position: absolute !important;
-  right: 16px !important;
-  top: 110px !important;   /* 按钮下方 */
-  bottom: auto !important;
-  left: auto !important;
-  z-index: 9998 !important;
-}
-
-/* 登录弹窗：联系管理员可复制 */
+/* === 登录框：联系管理员（可复制） === */
 .login-contact{
   margin: 6px 2px 10px;
   display:flex;
@@ -2044,7 +2011,7 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       </details>
     </div>
   </div>
-  <div class="cloud-addon-toggle" id="addon-toggle">☁️</div>
+  <div class="cloud-addon-toggle" id="addon-toggle">菜单</div>
 </div>
 
 <script>
@@ -2273,9 +2240,9 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 </script>
 
 <script>
-/* ======== UI 收口：主界面放回旧版云端按钮；☁️面板移除保存/拉取 ======== */
+/* ======== UI 收口：主界面放回旧版云端按钮；菜单面板移除保存/拉取 ======== */
 document.addEventListener('DOMContentLoaded', function(){
-  // ☁️面板移除“保存到云端/从云端拉取”
+  // 菜单面板移除“保存到云端/从云端拉取”
   try{
     document.querySelectorAll('button,div').forEach(function(el){
       const t=(el.innerText||'').trim();
@@ -2302,9 +2269,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <script>
-/* ===== ☁️ 面板：云端按钮回归（仅调用地基 API） ===== */
+/* ===== 菜单 面板：云端按钮回归（仅调用地基 API） ===== */
 document.addEventListener('DOMContentLoaded', function(){
-  // 找到 ☁️ 面板容器（兜底）
+  // 找到 菜单 面板容器（兜底）
   let panel = document.querySelector('.cloud-panel') || document.querySelector('.addon-panel') || null;
   if(!panel) return;
 
@@ -2316,7 +2283,7 @@ document.addEventListener('DOMContentLoaded', function(){
   box.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:8px';
 
   const btnSave = document.createElement('button');
-  btnSave.textContent = '☁️ 保存到云端';
+  btnSave.textContent = '菜单 保存到云端';
   btnSave.onclick = function(){
     if(window.saveSnapshotToCloud) window.saveSnapshotToCloud();
   };
@@ -2335,7 +2302,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <script>
-/* ===== 主界面：移除残留的云端“☁️保存/拉取”按钮（只保留☁️面板入口） ===== */
+/* ===== 主界面：移除残留的云端“菜单保存/拉取”按钮（只保留菜单面板入口） ===== */
 document.addEventListener('DOMContentLoaded', function(){
   // 删除总利润卡片右侧插入的容器
   document.querySelectorAll('.top-cloud-actions,.cloud-actions-row').forEach(function(el){ el.remove(); });
@@ -2346,10 +2313,10 @@ document.addEventListener('DOMContentLoaded', function(){
     if(el) el.remove();
   });
 
-  // 文本兜底：把主界面的“☁️ 保存/⬇️ 拉取”按钮移除（☁️面板里的保留）
+  // 文本兜底：把主界面的“菜单 保存/⬇️ 拉取”按钮移除（菜单面板里的保留）
   document.querySelectorAll('button').forEach(function(btn){
     var t=(btn.innerText||'').trim();
-    if(t==='☁️ 保存' || t==='⬇️ 拉取'){
+    if(t==='菜单 保存' || t==='⬇️ 拉取'){
       if(!btn.closest('.cloud-snapshot-actions')) btn.remove();
     }
   });
@@ -2841,60 +2808,6 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 <div id="copyToast">已复制：pinking0000</div>
-
-<script>
-/* === 顶部“菜单”（随页面滚动）=== */
-(function(){
-  function ensure(){
-    // create menu button once
-    let btn = document.getElementById('menuScrollBtn');
-    if(!btn){
-      btn = document.createElement('div');
-      btn.id = 'menuScrollBtn';
-      btn.textContent = '菜单';
-      document.body.appendChild(btn);
-      btn.addEventListener('click', () => {
-        // 优先复用旧☁️按钮的开关逻辑（最稳：包含动画/点击外部关闭等）
-        const oldBtn = document.getElementById('addon-toggle');
-        if(oldBtn){
-          try{
-            oldBtn.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
-            return;
-          }catch(e){}
-          try{ oldBtn.click(); return; }catch(e){}
-        }
-        // 兜底：直接切换面板显示
-        const card = document.getElementById('addon-card');
-        if(!card) return;
-        const isOpen = (getComputedStyle(card).display !== 'none');
-        card.style.display = isOpen ? 'none' : 'block';
-      });
-    }
-
-    // make sure addon-card is initially hidden (as before)
-    const card = document.getElementById('addon-card');
-    if(card && !card.dataset.__menuInit){
-      card.dataset.__menuInit = '1';
-      if(!card.style.display) card.style.display = 'none';
-    }
-  }
-
-  window.addEventListener('load', () => setTimeout(ensure, 0));
-
-  // close when tapping outside (mobile friendly)
-  document.addEventListener('click', (e) => {
-    const card = document.getElementById('addon-card');
-    const btn = document.getElementById('menuScrollBtn');
-    if(!card || getComputedStyle(card).display === 'none') return;
-    if(btn && (e.target === btn || btn.contains(e.target))) return;
-    if(card.contains(e.target)) return;
-    card.style.display = 'none';
-  }, true);
-
-  const mo = new MutationObserver(() => ensure());
-  mo.observe(document.documentElement, {childList:true, subtree:true});
-})();
-</script>
 
 <script>
 /* === 复制管理员微信号 === */
