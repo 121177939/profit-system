@@ -806,6 +806,98 @@ input:focus, select:focus, textarea:focus{
   transform: translateX(-50%) translateY(0);
 }
 
+
+/* === APP 丝滑增强（不改布局，仅视觉与交互质感） === */
+:root{
+  --app-bg: #f6f7fb;
+  --app-card: rgba(255,255,255,.86);
+  --app-line: rgba(17,24,39,.08);
+  --app-shadow: 0 14px 40px rgba(17,24,39,.10);
+  --app-shadow-2: 0 10px 28px rgba(17,24,39,.08);
+}
+
+/* 更像 App 的基础渲染 */
+html, body{
+  background: var(--app-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+/* 页面首次进入：轻淡入（不移动布局） */
+body{
+  opacity: 0;
+  transition: opacity 260ms var(--fx-ease);
+}
+body.fx-page-ready{
+  opacity: 1;
+}
+
+/* 轻微玻璃感（只加在面板/弹层，不改尺寸） */
+.cloud-addon-card,
+.login-box{
+  background: var(--app-card) !important;
+  border: 1px solid var(--app-line) !important;
+  box-shadow: var(--app-shadow) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* 输入框更像 App */
+input, select, textarea{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(17,24,39,.14);
+}
+input:focus, select:focus, textarea:focus{
+  border-color: rgba(59,130,246,.45);
+}
+
+/* 更顺滑的滚动手感（对可滚动容器） */
+*{
+  -webkit-tap-highlight-color: transparent;
+}
+.cloud-addon-card,
+.login-box{
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 按钮“轻波纹感”（无需改结构） */
+button, .cloud-addon-toggle, .admin-btn, .login-contact-copy{
+  position: relative;
+  overflow: hidden;
+}
+button::after, .cloud-addon-toggle::after, .admin-btn::after, .login-contact-copy::after{
+  content:"";
+  position:absolute;
+  inset:-40%;
+  background: radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 60%);
+  opacity:0;
+  transform: scale(.7);
+  transition: opacity var(--fx-fast) var(--fx-ease), transform var(--fx-fast) var(--fx-ease);
+  pointer-events:none;
+}
+button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::after, .login-contact-copy:active::after{
+  opacity:.9;
+  transform: scale(1);
+}
+
+/* 卡片/区块 hover（桌面）轻抬升 */
+@media (hover:hover){
+  .cloud-addon-card:hover{
+    box-shadow: 0 18px 55px rgba(17,24,39,.14) !important;
+  }
+}
+
+/* 尊重系统减少动效 */
+@media (prefers-reduced-motion: reduce){
+  *{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -3059,6 +3151,19 @@ const btnRefresh = document.getElementById("adminRefresh");
     }, 20);
   }, true);
 
+})();
+</script>
+
+
+<script>
+/* === 页面丝滑淡入 === */
+(function(){
+  function ready(){ document.body.classList.add('fx-page-ready'); }
+  if(document.readyState === 'complete' || document.readyState === 'interactive'){
+    setTimeout(ready, 0);
+  }else{
+    window.addEventListener('DOMContentLoaded', ()=> setTimeout(ready, 0));
+  }
 })();
 </script>
 
