@@ -2854,10 +2854,20 @@ const btnRefresh = document.getElementById("adminRefresh");
       btn.textContent = '菜单';
       document.body.appendChild(btn);
       btn.addEventListener('click', () => {
+        // 优先复用旧☁️按钮的开关逻辑（最稳：包含动画/点击外部关闭等）
+        const oldBtn = document.getElementById('addon-toggle');
+        if(oldBtn){
+          try{
+            oldBtn.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
+            return;
+          }catch(e){}
+          try{ oldBtn.click(); return; }catch(e){}
+        }
+        // 兜底：直接切换面板显示
         const card = document.getElementById('addon-card');
         if(!card) return;
-        const open = (card.style.display === 'block');
-        card.style.display = open ? 'none' : 'block';
+        const isOpen = (getComputedStyle(card).display !== 'none');
+        card.style.display = isOpen ? 'none' : 'block';
       });
     }
 
@@ -2875,7 +2885,7 @@ const btnRefresh = document.getElementById("adminRefresh");
   document.addEventListener('click', (e) => {
     const card = document.getElementById('addon-card');
     const btn = document.getElementById('menuScrollBtn');
-    if(!card || card.style.display !== 'block') return;
+    if(!card || getComputedStyle(card).display === 'none') return;
     if(btn && (e.target === btn || btn.contains(e.target))) return;
     if(card.contains(e.target)) return;
     card.style.display = 'none';
