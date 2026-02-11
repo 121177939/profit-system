@@ -702,8 +702,8 @@
 
 /* === 菜单按钮：不悬浮（随页面滚动）+ 缩小20px === */
 .cloud-addon-toggle{
-  width:36px !important;
-  height:36px !important;
+  width:41px !important;
+  height:41px !important;
   border-radius:12px !important;
   font-size:14px !important;
   line-height:1 !important;
@@ -724,6 +724,86 @@
   bottom: auto !important;
   left: auto !important;
   z-index: 99998 !important;
+}
+
+
+/* === UI 微特效（不改布局，仅 transform/opacity/阴影） === */
+:root{
+  --fx-ease: cubic-bezier(.2,.8,.2,1);
+  --fx-fast: 140ms;
+  --fx-med: 220ms;
+}
+
+/* 全局按钮/可点击控件：按压反馈 */
+button, .btn, .cloud-addon-toggle, .login-contact-copy, .admin-btn, .admin-btn-create, .admin-btn-reset, .admin-btn-delete{
+  transition: transform var(--fx-fast) var(--fx-ease), box-shadow var(--fx-fast) var(--fx-ease), filter var(--fx-fast) var(--fx-ease), opacity var(--fx-fast) var(--fx-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+button:active, .btn:active, .cloud-addon-toggle:active, .login-contact-copy:active, .admin-btn:active{
+  transform: scale(.98);
+}
+
+/* 菜单按钮：轻微呼吸（仅当面板收起时） */
+@keyframes fxBreath{
+  0%,100%{ transform: translateY(0); }
+  50%{ transform: translateY(-2px); }
+}
+.cloud-addon-toggle.fx-idle{
+  animation: fxBreath 2.8s var(--fx-ease) infinite;
+}
+
+/* 面板弹出/收起：淡入 + 上浮，不影响布局 */
+.cloud-addon-card{
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity var(--fx-med) var(--fx-ease), transform var(--fx-med) var(--fx-ease);
+  will-change: opacity, transform;
+}
+.cloud-addon-card.fx-open{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 登录框：出现淡入（不改位置尺寸） */
+.login-box{
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.98);
+  transition: opacity var(--fx-med) var(--fx-ease), transform var(--fx-med) var(--fx-ease);
+  will-change: opacity, transform;
+}
+.login-box.fx-open{
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* 表格/列表行：仅 hover/active 视觉，不动布局 */
+table tr, .row, .order-row{
+  transition: background-color var(--fx-med) var(--fx-ease), box-shadow var(--fx-med) var(--fx-ease), filter var(--fx-med) var(--fx-ease);
+}
+table tr:hover{
+  background-color: rgba(17,24,39,.03);
+}
+table tr:active{
+  background-color: rgba(17,24,39,.05);
+}
+
+/* 输入框聚焦：轻微阴影 */
+input, select, textarea{
+  transition: box-shadow var(--fx-med) var(--fx-ease), border-color var(--fx-med) var(--fx-ease);
+}
+input:focus, select:focus, textarea:focus{
+  box-shadow: 0 0 0 4px rgba(59,130,246,.12);
+}
+
+/* Toast 出现/消失更顺滑 */
+#copyToast{
+  transition: opacity var(--fx-fast) var(--fx-ease), transform var(--fx-fast) var(--fx-ease);
+  opacity: 0;
+  transform: translateX(-50%) translateY(6px);
+}
+#copyToast.fx-show{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 </style>
@@ -2882,7 +2962,7 @@ const btnRefresh = document.getElementById("adminRefresh");
   const RIGHT = 16;
   const TOP = 50;
   const GAP = 10;
-  const BTN = 36;
+  const BTN = 41;
 
   function apply(){
     const t = document.querySelector('.cloud-addon-toggle');
@@ -2918,6 +2998,67 @@ const btnRefresh = document.getElementById("adminRefresh");
 
   const mo = new MutationObserver(() => apply());
   mo.observe(document.documentElement, {subtree:true, childList:true, attributes:true, attributeFilter:['style','class']});
+})();
+</script>
+
+
+<script>
+/* === UI 微特效：仅切 class，不改布局 === */
+(function(){
+  const cardSel = '.cloud-addon-card';
+  const toggleSel = '.cloud-addon-toggle';
+  const loginBoxId = 'loginBox';
+  const toastId = 'copyToast';
+
+  function isShown(el){
+    if(!el) return false;
+    return getComputedStyle(el).display !== 'none';
+  }
+
+  function refresh(){
+    const card = document.querySelector(cardSel);
+    const toggle = document.querySelector(toggleSel);
+    const login = document.getElementById(loginBoxId);
+
+    if(card){
+      card.classList.toggle('fx-open', isShown(card));
+    }
+    if(toggle){
+      // idle breath only when card is closed
+      toggle.classList.toggle('fx-idle', !(card && isShown(card)));
+    }
+    if(login){
+      login.classList.toggle('fx-open', isShown(login));
+    }
+  }
+
+  // Observe style changes to update classes
+  const mo = new MutationObserver(()=>refresh());
+  mo.observe(document.documentElement, {subtree:true, attributes:true, attributeFilter:['style','class'], childList:true});
+
+  window.addEventListener('load', ()=>{ setTimeout(refresh, 0); setTimeout(refresh, 120); });
+
+  // Patch toast show to add class if exists
+  const toast = document.getElementById(toastId);
+  if(toast){
+    const origDisplaySetter = Object.getOwnPropertyDescriptor(HTMLElement.prototype,'style');
+  }
+
+  // Hook into existing toast usage: when display is set to block, add fx-show then remove later
+  document.addEventListener('click', (e)=>{
+    const btn = e.target && e.target.closest && e.target.closest('#copyAdminVxBtn');
+    if(!btn) return;
+    // toast will be shown by existing logic; we add a tiny delay then apply class
+    setTimeout(()=>{
+      const t = document.getElementById(toastId);
+      if(t){
+        t.classList.add('fx-show');
+        clearTimeout(t.__fxTimer);
+        t.__fxTimer = setTimeout(()=>t.classList.remove('fx-show'), 1150);
+      }
+    }, 20);
+  }, true);
+
 })();
 </script>
 
