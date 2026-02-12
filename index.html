@@ -3345,6 +3345,35 @@ const btnRefresh = document.getElementById("adminRefresh");
 }
 </style>
 
+
+<style>
+/* === V12：关键修复：把 backdrop 设为 column，justify-content 才能控制上下位置 === */
+#loginBackdrop.active{
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;          /* 水平居中 */
+  justify-content: flex-start !important;  /* 从顶部开始（上下轴） */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10vh) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+}
+</style>
+
+<script>
+/* === V12：打开时强制 backdrop 用 flex 展示，确保样式生效 === */
+(function(){
+  var oldToggle = window.toggleLoginBox;
+  window.toggleLoginBox = function(show){
+    if(typeof oldToggle === 'function') oldToggle(show);
+    var bd = document.getElementById('loginBackdrop');
+    var box = document.getElementById('loginBox');
+    if(!bd || !box) return;
+    var shouldOpen = (getComputedStyle(box).display !== 'none');
+    bd.style.display = shouldOpen ? 'flex' : 'none';
+    if(shouldOpen) bd.classList.add('active'); else bd.classList.remove('active');
+  };
+})();
+</script>
+
 </body>
 </html>
 
