@@ -1031,6 +1031,15 @@ body.login-open .cloud-addon-card{ display:none !important; }
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
+
+<style>
+/* 强制扫码弹窗最高层级 */
+#qrModal, #scannerModal, .scanner-modal, .modal-backdrop {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+}
+</style>
+
 </head>
 <body>
 
@@ -3630,6 +3639,48 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(console.error);
   });
+}
+</script>
+
+
+<script>
+/* 本地优先高速扫码（BarcodeDetector） */
+async function startFastScanner(videoEl, onResult){
+  if(!('BarcodeDetector' in window)){
+    console.log("BarcodeDetector 不支持，使用原扫码逻辑");
+    return null;
+  }
+
+  const detector = new BarcodeDetector({formats:['qr_code','code_128','ean_13']});
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
+    audio:false
+  });
+
+  videoEl.srcObject = stream;
+  await videoEl.play();
+
+  let stopped=false;
+
+  async function loop(){
+    if(stopped) return;
+    try{
+      const codes = await detector.detect(videoEl);
+      if(codes && codes.length){
+        onResult(codes[0].rawValue);
+        stopped=true;
+        stream.getTracks().forEach(t=>t.stop());
+        return;
+      }
+    }catch(e){}
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  return ()=>{
+    stopped=true;
+    stream.getTracks().forEach(t=>t.stop());
+  };
 }
 </script>
 

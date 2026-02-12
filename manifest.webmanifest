@@ -1,7 +1,6 @@
 {
   "name": "Liruna",
   "short_name": "Liruna",
-  "description": "Liruna 官方应用",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
