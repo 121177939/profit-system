@@ -3374,6 +3374,36 @@ const btnRefresh = document.getElementById("adminRefresh");
 })();
 </script>
 
+
+<style>
+/* === V13：最终修复：禁止 loginBox 自己 fixed/translate 居中，改由 backdrop flex 控制位置 === */
+#loginBox,
+.login-box{
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+.login-box.fx-open,
+.login-box.fx-close{
+  transform: none !important;  /* 只保留 opacity 动画，避免 translate 影响 */
+}
+
+/* 位置：下移一些（仍水平居中） */
+#loginBackdrop.active{
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12vh) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+}
+</style>
+
 </body>
 </html>
 
