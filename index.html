@@ -3247,25 +3247,56 @@ const btnRefresh = document.getElementById("adminRefresh");
 }
 </style>
 
+
+<style>
+/* === V9：确保遮罩层在 body 下，避免祖先 transform 导致 fixed 偏移 === */
+#loginBackdrop{
+  position: fixed !important;
+  inset: 0 !important;
+  display: none;
+  z-index: 999998 !important;
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(2px);
+
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+#loginBackdrop.active{ display:flex !important; }
+
+#loginBox{
+  position: relative !important;
+  transform: none !important;
+  margin: 0 !important;
+  width: min(92vw, 380px) !important;
+  max-height: calc(100dvh - 120px) !important;
+  overflow: auto !important;
+}
+</style>
+
 <script>
-/* === V8：真正居中（把 #loginBox 强制挂到 #loginBackdrop 下面，然后 backdrop 用 flex 居中） === */
+/* === V9：把 #loginBackdrop 和 #loginBox 都挂到 body，彻底修复“看起来不居中” === */
 (function(){
   function ensureMount(){
-    var box = document.getElementById('loginBox');
     var bd  = document.getElementById('loginBackdrop');
-    if(!box || !bd) return;
+    var box = document.getElementById('loginBox');
+    if(!bd || !box) return;
+
+    if(bd.parentNode !== document.body){
+      document.body.appendChild(bd);
+    }
     if(box.parentNode !== bd){
       bd.appendChild(box);
     }
   }
 
-  // Wrap existing toggleLoginBox if exists
   var oldToggle = window.toggleLoginBox;
   window.toggleLoginBox = function(show){
     ensureMount();
-    var box = document.getElementById('loginBox');
     var bd  = document.getElementById('loginBackdrop');
-    if(!box || !bd){
+    var box = document.getElementById('loginBox');
+    if(!bd || !box){
       if(typeof oldToggle === 'function') return oldToggle(show);
       return;
     }
@@ -3280,7 +3311,6 @@ const btnRefresh = document.getElementById("adminRefresh");
     ensureMount();
   }, {once:true});
 
-  // Click backdrop to close
   document.addEventListener('click', function(e){
     var bd = document.getElementById('loginBackdrop');
     if(!bd) return;
