@@ -1014,6 +1014,20 @@ body.login-open .cloud-addon-panel{
 body.login-open .cloud-addon-card{ display:none !important; }
 
 </style>
+
+<style>
+/* === 列宽定版（输入框跟随列宽） === */
+#orders-table{ table-layout: fixed; }
+#orders-table th, #orders-table td{ overflow: hidden; text-overflow: ellipsis; }
+#orders-table td input, #orders-table td select{ width: 100%; box-sizing: border-box; }
+
+/* 备注列：允许更长，避免被 fixed 过度压缩 */
+#orders-table th:nth-child(10),
+#orders-table td:nth-child(10){
+  width: auto !important;
+}
+</style>
+
 </head>
 <body>
 
@@ -1091,19 +1105,19 @@ body.login-open .cloud-addon-card{ display:none !important; }
                             日期
                             <span class="sort-indicator" id="date-sort">↓</span>
                         </th>
-                        <th>下单人</th>
-                        <th>产品</th>
-                        <th style="width: 80px;">下单金额</th>
+                        <th style="width: 80px;">下单人</th>
+                        <th style="width: 100px;">产品</th>
+                        <th style="width: 60px;">下单金额</th>
                         <th style="width: 60px;">返款</th>
                         <th style="width: 60px;">运费</th>
-                        <th style="width: 80px;" class="sortable" id="sell-amount-header">
+                        <th style="width: 60px;" class="sortable" id="sell-amount-header">
                             售出金额
                             <span class="sort-indicator" id="sell-amount-sort">↕</span>
                         </th>
-                        <th style="width: 80px;">利润</th>
-                        <th style="width: 100px;">物流单号</th>
+                        <th style="width: 60px;">利润</th>
+                        <th style="width: 130px;">物流单号</th>
                         <th>备注</th>
-                        <th style="width: 60px;">操作</th>
+                        <th style="width: 70px;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
@@ -2151,13 +2165,20 @@ body.login-open .cloud-addon-card{ display:none !important; }
 
         const scannerModal = document.createElement('div');
         scannerModal.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,.6);
-        display:none;align-items:center;justify-content:center;z-index:9999;
+        position:fixed;inset:0;background:rgba(0,0,0,.55);
+        display:none;align-items:center;justify-content:center;z-index:9999999;
+        padding:16px;box-sizing:border-box;
         `;
         scannerModal.innerHTML = `
-        <div style="background:#fff;width:90%;max-width:420px;border-radius:10px;padding:10px;">
-            <div style="text-align:right;color:#e74c3c;font-size:14px;cursor:pointer;" id="closeScannerBtn">关闭 ✖</div>
-            <div id="reader" style="width:100%;"></div>
+        <div style="background:rgba(255,255,255,.92);width:92%;max-width:440px;border-radius:16px;padding:12px;border:1px solid rgba(17,24,39,.10);box-shadow:0 18px 55px rgba(0,0,0,.28);backdrop-filter: blur(10px);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                <div style="font-weight:800;color:#111827;font-size:14px;">扫码识别</div>
+                <button type="button" id="closeScannerBtn" style="border:1px solid rgba(17,24,39,.18);background:#fff;color:#111827;border-radius:999px;padding:6px 10px;font-weight:800;cursor:pointer;">关闭</button>
+            </div>
+            <div id="reader" style="width:100%;border-radius:14px;overflow:hidden;background:#0b1220;"></div>
+            <div style="margin-top:10px;font-size:12px;color:rgba(17,24,39,.70);line-height:1.4;">
+                将条码/二维码放入取景框内，自动识别后会写入备注。
+            </div>
         </div>
         `;
         document.body.appendChild(scannerModal);
@@ -2185,7 +2206,7 @@ body.login-open .cloud-addon-card{ display:none !important; }
             } catch(e) {}
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: 280, aspectRatio: 1.7778, disableFlip: false, formatsToSupport: _formatsToSupport },
+                { fps: 10, qrbox: 240, aspectRatio: 1.0, disableFlip: false, formatsToSupport: _formatsToSupport },
                 decodedText => {
                     currentScanTargetInput.value = decodedText;
                     currentScanTargetInput.dispatchEvent(new Event('change'));
