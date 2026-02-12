@@ -1348,7 +1348,7 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
                 <td>
                     <div style="display:flex;align-items:center;gap:4px;">
                         <input type="text" class="editable note-input" data-field="notes" value="${order.notes || ''}">
-                        <button type="button" class="scan-btn" title="扫码填入备注">📷</button>
+                        <button type="button" class="scan-btn" title="扫码填入备注"><i class="fas fa-camera"></i></button>
                     </div>
                 </td>
                 <td><button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i> 删除</button></td>
@@ -2718,6 +2718,10 @@ with check (
     const isOpen = box.style.display === "block";
     const shouldOpen = (show===undefined)?(!isOpen):!!show;
     box.style.display = shouldOpen ? "block" : "none";
+    var bd = document.getElementById("loginBackdrop");
+    if(bd) bd.style.display = shouldOpen ? "block" : "none";
+    // 强制居中一次（避免被外层样式影响）
+    try{ box.style.position="fixed"; box.style.left="50%"; box.style.top="50%"; box.style.transform="translate(-50%,-50%)"; box.style.margin="0"; }catch(e){}
     if(shouldOpen){
       const emailEl = document.getElementById("loginEmail");
       const pwEl = document.getElementById("loginPassword");
@@ -3139,6 +3143,66 @@ const btnRefresh = document.getElementById("adminRefresh");
   }
   window.addEventListener('resize', center, {passive:true});
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(center, 0); }, {once:true});
+})();
+</script>
+
+
+<style>
+/* === FIX: 登录框强制居中（以 #loginBox 为准，避免被其它 .login-box 样式覆盖） === */
+#loginBox{
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  width: min(92vw, 380px) !important;
+  max-height: calc(100vh - 90px) !important;
+  overflow: auto !important;
+  z-index: 999999 !important;
+}
+
+/* 背景遮罩层层级保证在内容之下 */
+#loginBackdrop{
+  z-index: 999998 !important;
+}
+
+/* === FIX: 扫码按钮更像 App 图标按钮 === */
+.scan-btn{
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(17,24,39,.18);
+  background: rgba(17,24,39,.04);
+  color: rgba(17,24,39,.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(17,24,39,.08);
+}
+.scan-btn i{ font-size: 16px; }
+.scan-btn:active{ transform: scale(.98); }
+</style>
+
+
+<script>
+/* === 点击遮罩关闭登录框 === */
+(function(){
+  var bd = document.getElementById('loginBackdrop');
+  if(!bd) return;
+  bd.addEventListener('click', function(){
+    var cancel = document.getElementById('loginCancel');
+    if(cancel) cancel.click();
+    else{
+      var box = document.getElementById('loginBox');
+      if(box) box.style.display = 'none';
+      bd.style.display = 'none';
+    }
+  });
 })();
 </script>
 
