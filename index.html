@@ -2187,6 +2187,10 @@ body.login-open .cloud-addon-card{ display:none !important; }
         let currentScanTargetInput = null;
         let html5QrCode = null;
 
+        // 打开扫码时：临时降低右下角菜单面板层级，避免挡住“关闭”按钮
+        const cloudAddonPanel = document.querySelector('.cloud-addon-panel');
+        let cloudAddonPanelPrevZ = null;
+
         const scannerModal = document.createElement('div');
         scannerModal.style.cssText = `
         position:fixed;inset:0;background:rgba(0,0,0,.6);
@@ -2203,6 +2207,16 @@ body.login-open .cloud-addon-card{ display:none !important; }
         function openScanner(inputEl){
             currentScanTargetInput = inputEl;
             scannerModal.style.display = 'flex';
+
+            // 临时降低菜单层级（方案一）
+            if (cloudAddonPanel) {
+                try {
+                    cloudAddonPanelPrevZ = cloudAddonPanel.style.zIndex || window.getComputedStyle(cloudAddonPanel).zIndex;
+                } catch(e) {
+                    cloudAddonPanelPrevZ = cloudAddonPanel.style.zIndex || '2147483647';
+                }
+                cloudAddonPanel.style.zIndex = '1';
+            }
 
             html5QrCode = new Html5Qrcode("reader");
             // 仅用于：扫描条形码/二维码，然后写入「备注」输入框（本地数据优先，不触碰其它字段）
@@ -2237,6 +2251,13 @@ body.login-open .cloud-addon-card{ display:none !important; }
 
         function closeScanner(){
             scannerModal.style.display = 'none';
+
+            // 恢复菜单层级
+            if (cloudAddonPanel && cloudAddonPanelPrevZ !== null && cloudAddonPanelPrevZ !== undefined) {
+                cloudAddonPanel.style.zIndex = String(cloudAddonPanelPrevZ);
+                cloudAddonPanelPrevZ = null;
+            }
+
             if(html5QrCode){
                 html5QrCode.stop().then(()=>html5QrCode.clear());
                 html5QrCode = null;
