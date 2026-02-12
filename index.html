@@ -3342,6 +3342,7 @@ const cancel = document.getElementById('loginCancel');
   }
 
   
+
 window.showAppNotice = function(title, subtitle){
   var n = document.getElementById('appNotice');
   if(!n) return;
@@ -3352,19 +3353,23 @@ window.showAppNotice = function(title, subtitle){
   main.textContent = title || '';
   if(sub) sub.textContent = subtitle || '';
 
-  // 新风格：更轻、更像系统 Toast
-  n.style.top = '22%';
-  n.style.background = 'rgba(34,197,94,.95)';
-  n.style.borderRadius = '18px';
-  n.style.boxShadow = '0 12px 40px rgba(0,0,0,.18)';
+  // 极简白色浮层风格
+  n.style.top = '20%';
+  n.style.background = '#ffffff';
+  n.style.color = '#111827';
+  n.style.borderRadius = '20px';
+  n.style.border = '1px solid rgba(0,0,0,.06)';
+  n.style.boxShadow = '0 20px 60px rgba(0,0,0,.12)';
   n.style.fontWeight = '600';
+  n.style.padding = '14px 18px';
 
   n.classList.add('show');
   clearTimeout(n.__t);
   n.__t = setTimeout(function(){
     n.classList.remove('show');
-  }, 1200);
+  }, 1300);
 };
+
 
 
   document.addEventListener('DOMContentLoaded', function(){
