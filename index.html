@@ -3217,22 +3217,77 @@ const btnRefresh = document.getElementById("adminRefresh");
 }
 </style>
 
+
+<style>
+/* === 登录框居中（V8：把 loginBox 挂到 loginBackdrop 下，避免受页面布局影响） === */
+#loginBackdrop{
+  position: fixed !important;
+  inset: 0 !important;
+  display: none;
+  z-index: 999998 !important;
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(2px);
+
+  align-items: center;
+  justify-content: center;
+}
+#loginBackdrop.active{ display:flex !important; }
+
+#loginBox{
+  position: relative !important;
+  left:auto !important;
+  top:auto !important;
+  right:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  margin:0 !important;
+  width: min(92vw, 380px) !important;
+  max-height: calc(100vh - 90px) !important;
+  overflow:auto !important;
+}
+</style>
+
 <script>
-/* === 登录框使用遮罩flex居中 === */
+/* === V8：真正居中（把 #loginBox 强制挂到 #loginBackdrop 下面，然后 backdrop 用 flex 居中） === */
 (function(){
-  function toggleLoginBox(show){
-    var box = document.getElementById("loginBox");
-    var bd  = document.getElementById("loginBackdrop");
+  function ensureMount(){
+    var box = document.getElementById('loginBox');
+    var bd  = document.getElementById('loginBackdrop');
     if(!box || !bd) return;
-
-    var isOpen = box.style.display === "block";
-    var shouldOpen = (show===undefined)?(!isOpen):!!show;
-
-    box.style.display = shouldOpen ? "block" : "none";
-    bd.classList.toggle("active", shouldOpen);
+    if(box.parentNode !== bd){
+      bd.appendChild(box);
+    }
   }
 
-  window.toggleLoginBox = toggleLoginBox;
+  // Wrap existing toggleLoginBox if exists
+  var oldToggle = window.toggleLoginBox;
+  window.toggleLoginBox = function(show){
+    ensureMount();
+    var box = document.getElementById('loginBox');
+    var bd  = document.getElementById('loginBackdrop');
+    if(!box || !bd){
+      if(typeof oldToggle === 'function') return oldToggle(show);
+      return;
+    }
+    var isOpen = (getComputedStyle(box).display !== 'none');
+    var shouldOpen = (show===undefined)?(!isOpen):!!show;
+
+    box.style.display = shouldOpen ? 'block' : 'none';
+    bd.classList.toggle('active', shouldOpen);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    ensureMount();
+  }, {once:true});
+
+  // Click backdrop to close
+  document.addEventListener('click', function(e){
+    var bd = document.getElementById('loginBackdrop');
+    if(!bd) return;
+    if(e.target === bd){
+      window.toggleLoginBox(false);
+    }
+  }, true);
 })();
 </script>
 
