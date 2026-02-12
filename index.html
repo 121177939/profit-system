@@ -3120,31 +3120,7 @@ const btnRefresh = document.getElementById("adminRefresh");
 
 
 <script>
-/* === FORCE login box center (viewport) === */
-(function(){
-  function center(){
-    var box = document.getElementById('loginBox');
-    if(!box) return;
-    // only when visible
-    if(getComputedStyle(box).display === 'none') return;
-    box.style.position = 'fixed';
-    box.style.left = '50%';
-    box.style.top = '50%';
-    box.style.right = 'auto';
-    box.style.bottom = 'auto';
-    box.style.margin = '0';
-    box.style.transform = 'translate(-50%, -50%)';
-  }
-  // run on open/changes
-  var box = document.getElementById('loginBox');
-  if(box){
-    var mo = new MutationObserver(center);
-    mo.observe(box, {attributes:true, attributeFilter:['style','class']});
-  }
-  window.addEventListener('resize', center, {passive:true});
-  document.addEventListener('DOMContentLoaded', function(){ setTimeout(center, 0); }, {once:true});
-})();
-</script>
+
 
 
 <style>
@@ -3203,6 +3179,60 @@ const btnRefresh = document.getElementById("adminRefresh");
       bd.style.display = 'none';
     }
   });
+})();
+</script>
+
+
+<style>
+/* === 登录框终极居中修复（使用遮罩flex居中，彻底避免transform叠加） === */
+
+#loginBackdrop{
+  position: fixed !important;
+  inset: 0 !important;
+  display: none;
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(2px);
+  z-index: 999998 !important;
+
+  /* 核心：用flex居中 */
+  align-items: center;
+  justify-content: center;
+}
+
+#loginBackdrop.active{
+  display: flex !important;
+}
+
+#loginBox{
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  width: min(92vw, 380px) !important;
+  max-height: calc(100vh - 90px) !important;
+  overflow: auto !important;
+}
+</style>
+
+<script>
+/* === 登录框使用遮罩flex居中 === */
+(function(){
+  function toggleLoginBox(show){
+    var box = document.getElementById("loginBox");
+    var bd  = document.getElementById("loginBackdrop");
+    if(!box || !bd) return;
+
+    var isOpen = box.style.display === "block";
+    var shouldOpen = (show===undefined)?(!isOpen):!!show;
+
+    box.style.display = shouldOpen ? "block" : "none";
+    bd.classList.toggle("active", shouldOpen);
+  }
+
+  window.toggleLoginBox = toggleLoginBox;
 })();
 </script>
 
