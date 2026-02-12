@@ -3154,8 +3154,10 @@ const btnRefresh = document.getElementById("adminRefresh");
   background: rgba(17,24,39,.04);
   color: rgba(17,24,39,.85);
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8vh);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   padding: 0;
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(17,24,39,.08);
@@ -3320,6 +3322,16 @@ const btnRefresh = document.getElementById("adminRefresh");
   }, true);
 })();
 </script>
+
+
+<style>
+/* === V10：登录框向下偏一点（仍保持水平居中） === */
+#loginBackdrop.active{
+  align-items: flex-start !important;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8vh) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+}
+</style>
 
 </body>
 </html>
