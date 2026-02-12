@@ -1032,14 +1032,6 @@ body.login-open .cloud-addon-card{ display:none !important; }
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
 
-<style>
-/* 强制扫码弹窗最高层级 */
-#qrModal, #scannerModal, .scanner-modal, .modal-backdrop {
-  position: fixed !important;
-  z-index: 2147483647 !important;
-}
-</style>
-
 </head>
 <body>
 
@@ -2197,6 +2189,24 @@ body.login-open .cloud-addon-card{ display:none !important; }
         let currentScanTargetInput = null;
 
         // 扫码状态（本地解码优先：BarcodeDetector；不支持则回退 html5-qrcode）
+
+        function __findMenuBtn(){
+            // 尝试找到右上角“菜单”按钮（不依赖具体 class/id）
+            const cands = Array.from(document.querySelectorAll('button, a, div, span'));
+            for(const el of cands){
+                const t = (el.textContent||'').trim();
+                if(t === '菜单'){
+                    return el;
+                }
+            }
+            return null;
+        }
+        function __setMenuVisible(vis){
+            const btn = __findMenuBtn();
+            if(!btn) return;
+            btn.style.visibility = vis ? '' : 'hidden';
+        }
+
         const __scanState = {
             active: false,
             ready: false,
@@ -2333,6 +2343,7 @@ body.login-open .cloud-addon-card{ display:none !important; }
         async function openScanner(inputEl){
             currentScanTargetInput = inputEl;
             scannerModal.style.display = 'flex';
+            __setMenuVisible(false);
 
             // 激活检测：若已预热 -> 立刻开始识别（零延迟）
             __scanState.active = true;
@@ -2362,6 +2373,7 @@ body.login-open .cloud-addon-card{ display:none !important; }
 
         async function closeScanner(){
             scannerModal.style.display = 'none';
+            __setMenuVisible(true);
             __scanState.active = false;
             currentScanTargetInput = null;
 
