@@ -1057,7 +1057,7 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
                         <th style="width:60px;">利润</th>
                         <th style="width:130px;">物流单号</th>
                         <th>备注</th>
-                        <th style="width: 60px;">操作</th>
+                        <th style="width:70px;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
@@ -2925,66 +2925,6 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 <script>
-/* === Login modal viewport-centering patch (handles mobile keyboard) === */
-(function(){
-  const box = document.getElementById('loginBox');
-  const backdrop = document.getElementById('loginBackdrop');
-  if(!box || !backdrop) return;
-
-  function centerBox(){
-    // use VisualViewport when available to avoid keyboard pushing things around
-    const vv = window.visualViewport;
-    if(vv){
-      const cx = (vv.width / 2);
-      const cy = (vv.height / 2) + vv.offsetTop;
-      box.style.left = (cx) + 'px';
-      box.style.top  = (cy - 30) + 'px';
-      box.style.transform = 'translate(-50%, -50%)';
-    }else{
-      box.style.left = '50%';
-      box.style.top  = '50%';
-      box.style.transform = 'translate(-50%, -50%)';
-    }
-  }
-
-  function showBackdrop(){
-    backdrop.style.display = 'block';
-  }
-  function hideBackdrop(){
-    backdrop.style.display = 'none';
-  }
-
-  // Detect show/hide by observing display style changes
-  const mo = new MutationObserver(() => {
-    const visible = box.style.display !== 'none';
-    if(visible){
-      showBackdrop();
-      centerBox();
-      setTimeout(centerBox, 0);
-    }else{
-      hideBackdrop();
-    }
-  });
-  mo.observe(box, { attributes:true, attributeFilter:['style','class'] });
-
-  // Clicking backdrop cancels login UI
-  backdrop.addEventListener('click', () => {
-    const cancel = document.getElementById('loginCancel');
-    if(cancel) cancel.click();
-    else box.style.display = 'none';
-  });
-
-  // Keep centered while keyboard opens/closes
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', centerBox, { passive:true });
-    window.visualViewport.addEventListener('scroll', centerBox, { passive:true });
-  }
-  window.addEventListener('resize', centerBox, { passive:true });
-})();
-</script>
-
-
-<script>
 /* === FORCE admin button styles (inline, bypass CSS cache/state) === */
 (function(){
   function applyAdminBtnStyles(){
@@ -3171,6 +3111,34 @@ const btnRefresh = document.getElementById("adminRefresh");
   }else{
     window.addEventListener('DOMContentLoaded', ()=> setTimeout(ready, 0));
   }
+})();
+</script>
+
+
+<script>
+/* === FORCE login box center (viewport) === */
+(function(){
+  function center(){
+    var box = document.getElementById('loginBox');
+    if(!box) return;
+    // only when visible
+    if(getComputedStyle(box).display === 'none') return;
+    box.style.position = 'fixed';
+    box.style.left = '50%';
+    box.style.top = '50%';
+    box.style.right = 'auto';
+    box.style.bottom = 'auto';
+    box.style.margin = '0';
+    box.style.transform = 'translate(-50%, -50%)';
+  }
+  // run on open/changes
+  var box = document.getElementById('loginBox');
+  if(box){
+    var mo = new MutationObserver(center);
+    mo.observe(box, {attributes:true, attributeFilter:['style','class']});
+  }
+  window.addEventListener('resize', center, {passive:true});
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(center, 0); }, {once:true});
 })();
 </script>
 
