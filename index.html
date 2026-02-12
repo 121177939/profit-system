@@ -954,6 +954,65 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
   }
 }
 
+
+/* === 登录弹窗：居中对齐（稳定版） === */
+#loginBackdrop{
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+#loginBackdrop.show{ display:flex; }
+
+/* 登录盒子在遮罩里居中，不依赖 left/top */
+#loginBox{
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+/* 美化：成功提示弹窗（替代 alert） */
+#appNotice{
+  position: fixed;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  min-width: min(88vw, 360px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(17,24,39,.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 18px 55px rgba(0,0,0,.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms var(--fx-ease), transform 180ms var(--fx-ease);
+}
+#appNotice.show{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+#appNotice .sub{
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: .85;
+}
+
+
+
+/* === 登录打开时：隐藏菜单层，避免遮挡/误触（不影响登录按钮事件） === */
+#loginBackdrop{ z-index: 2147483647 !important; }
+body.login-open .cloud-addon-panel{
+  z-index: 2147483646 !important;
+  pointer-events: none !important;
+  opacity: .12;
+}
+body.login-open .cloud-addon-card{ display:none !important; }
+
 </style>
 </head>
 <body>
@@ -1026,38 +1085,25 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
         
         <div class="table-container">
             <table id="orders-table">
-                <colgroup>
-                    <col style="width:70px">
-                    <col style="width:80px">
-                    <col style="width:100px">
-                    <col style="width:60px">
-                    <col style="width:60px">
-                    <col style="width:60px">
-                    <col style="width:60px">
-                    <col style="width:60px">
-                    <col style="width:130px">
-                    <col>
-                    <col style="width:60px">
-                </colgroup>
                 <thead>
                     <tr>
                         <th style="width: 70px;" class="sortable" id="date-header">
                             日期
                             <span class="sort-indicator" id="date-sort">↓</span>
                         </th>
-                        <th style="width:80px;">下单人</th>
-                        <th style="width:100px;">产品</th>
-                        <th style="width:60px;">下单金额</th>
-                        <th style="width:60px;">返款</th>
-                        <th style="width:60px;">运费</th>
-                        <th style="width: 60px;" class="sortable" id="sell-amount-header">
+                        <th>下单人</th>
+                        <th>产品</th>
+                        <th style="width: 80px;">下单金额</th>
+                        <th style="width: 60px;">返款</th>
+                        <th style="width: 60px;">运费</th>
+                        <th style="width: 80px;" class="sortable" id="sell-amount-header">
                             售出金额
                             <span class="sort-indicator" id="sell-amount-sort">↕</span>
                         </th>
-                        <th style="width:60px;">利润</th>
-                        <th style="width:130px;">物流单号</th>
+                        <th style="width: 80px;">利润</th>
+                        <th style="width: 100px;">物流单号</th>
                         <th>备注</th>
-                        <th style="width:70px;">操作</th>
+                        <th style="width: 60px;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
@@ -1348,7 +1394,7 @@ button:active::after, .cloud-addon-toggle:active::after, .admin-btn:active::afte
                 <td>
                     <div style="display:flex;align-items:center;gap:4px;">
                         <input type="text" class="editable note-input" data-field="notes" value="${order.notes || ''}">
-                        <button type="button" class="scan-btn" title="扫码填入备注"><i class="fas fa-camera"></i></button>
+                        <button type="button" class="scan-btn" title="扫码填入备注">📷</button>
                     </div>
                 </td>
                 <td><button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i> 删除</button></td>
@@ -2508,6 +2554,70 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
 </script>
 
 <script>
+/* ======== UI 收口：主界面放回旧版云端按钮；菜单面板移除保存/拉取 ======== */
+document.addEventListener('DOMContentLoaded', function(){
+  // 菜单面板移除“保存到云端/从云端拉取”
+  try{
+    document.querySelectorAll('button,div').forEach(function(el){
+      const t=(el.innerText||'').trim();
+      if(t==='保存到云端' || t==='从云端拉取'){ el.remove(); }
+    });
+  }catch(e){}
+
+  
+
+});
+</script>
+
+
+<script>
+/* ===== 登录态持久化恢复（仅恢复登录状态，不拉数据） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  if(!window.__supa) return;
+  window.__supa.auth.getSession().then(function(res){
+    if(res && res.data && res.data.session){
+      window.__isLoggedIn = true;
+      console.log('[AUTH] session restored');
+    }
+  });
+});
+</script>
+
+
+<script>
+/* ===== 菜单 面板：云端按钮回归（仅调用地基 API） ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  // 找到 菜单 面板容器（兜底）
+  let panel = document.querySelector('.cloud-panel') || document.querySelector('.addon-panel') || null;
+  if(!panel) return;
+
+  // 避免重复插入
+  if(panel.querySelector('.cloud-snapshot-actions')) return;
+
+  const box = document.createElement('div');
+  box.className = 'cloud-snapshot-actions';
+  box.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:8px';
+
+  const btnSave = document.createElement('button');
+  btnSave.textContent = '菜单 保存到云端';
+  btnSave.onclick = function(){
+    if(window.saveSnapshotToCloud) window.saveSnapshotToCloud();
+  };
+
+  const btnLoad = document.createElement('button');
+  btnLoad.textContent = '⬇️ 从云端拉取';
+  btnLoad.onclick = function(){
+    if(window.loadSnapshotFromCloud) window.loadSnapshotFromCloud();
+  };
+
+  box.appendChild(btnSave);
+  box.appendChild(btnLoad);
+  panel.appendChild(box);
+});
+</script>
+
+
+<script>
 /* ===== 主界面：移除残留的云端“菜单保存/拉取”按钮（只保留菜单面板入口） ===== */
 document.addEventListener('DOMContentLoaded', function(){
   // 删除总利润卡片右侧插入的容器
@@ -2718,10 +2828,6 @@ with check (
     const isOpen = box.style.display === "block";
     const shouldOpen = (show===undefined)?(!isOpen):!!show;
     box.style.display = shouldOpen ? "block" : "none";
-    var bd = document.getElementById("loginBackdrop");
-    if(bd) bd.style.display = shouldOpen ? "block" : "none";
-    // 强制居中一次（避免被外层样式影响）
-    try{ box.style.position="fixed"; box.style.left="50%"; box.style.top="50%"; box.style.transform="translate(-50%,-50%)"; box.style.margin="0"; }catch(e){}
     if(shouldOpen){
       const emailEl = document.getElementById("loginEmail");
       const pwEl = document.getElementById("loginPassword");
@@ -2772,7 +2878,7 @@ async function doLogin(email, pw){
       refreshAdminVisibility();
       await checkProfileAndMaybeKick(user);
       hideLoginBox();
-      alert("登录成功");
+      window.showAppNotice && window.showAppNotice("登录成功", "已开启功能权限");
     } catch(e) {
       showLoginMsg("登录失败：" + (e?.message || e));
     } finally{
@@ -2926,6 +3032,99 @@ const btnRefresh = document.getElementById("adminRefresh");
   }, { passive: true });
 })();
 
+</script>
+
+<script>
+/* === Login modal viewport-centering patch (handles mobile keyboard) === */
+(function(){
+  const box = document.getElementById('loginBox');
+  const backdrop = document.getElementById('loginBackdrop');
+  if(!box || !backdrop) return;
+
+  function centerBox(){
+    // use VisualViewport when available to avoid keyboard pushing things around
+    const vv = window.visualViewport;
+    if(vv){
+      const cx = (vv.width / 2);
+      const cy = (vv.height / 2) + vv.offsetTop;
+      box.style.left = (cx) + 'px';
+      box.style.top  = (cy - 30) + 'px';
+      box.style.transform = 'translate(-50%, -50%)';
+    }else{
+      box.style.left = '50%';
+      box.style.top  = '50%';
+      box.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+
+  function showBackdrop(){
+    backdrop.classList.add('show');
+  }
+  function hideBackdrop(){
+    backdrop.classList.remove('show');
+  }
+
+  // Detect show/hide by observing display style changes
+  const mo = new MutationObserver(() => {
+    const visible = box.style.display !== 'none';
+    if(visible){
+      document.body.classList.add('login-open');
+      showBackdrop();
+      centerBox();
+      setTimeout(centerBox, 0);
+    }else{
+      document.body.classList.remove('login-open');
+      hideBackdrop();
+    }
+  });
+  mo.observe(box, { attributes:true, attributeFilter:['style','class'] });
+
+  // Clicking backdrop cancels login UI
+  backdrop.addEventListener('click', (e) => {
+    // 只点到遮罩空白处才关闭
+    if(e && e.target !== backdrop) return;
+const cancel = document.getElementById('loginCancel');
+    if(cancel) cancel.click();
+    else box.style.display = 'none';
+  });
+
+  // Keep centered while keyboard opens/closes
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', centerBox, { passive:true });
+    window.visualViewport.addEventListener('scroll', centerBox, { passive:true });
+  }
+  window.addEventListener('resize', centerBox, { passive:true });
+})();
+</script>
+
+
+<script>
+/* === FORCE admin button styles (inline, bypass CSS cache/state) === */
+(function(){
+  function applyAdminBtnStyles(){
+    const map = [
+      {id:'adminCreateUserBtn', bg:'rgba(34,197,94,.14)', bd:'rgba(34,197,94,.45)', cl:'#065f46'},
+      {id:'adminResetPwdBtn',  bg:'rgba(59,130,246,.14)', bd:'rgba(59,130,246,.45)', cl:'#1e3a8a'},
+      {id:'adminDeleteUserBtn',bg:'rgba(239,68,68,.14)', bd:'rgba(239,68,68,.55)', cl:'#991b1b'}
+    ];
+    map.forEach(x=>{
+      const b=document.getElementById(x.id);
+      if(!b) return;
+      b.style.height='38px';
+      b.style.borderRadius='14px';
+      b.style.fontSize='14px';
+      b.style.fontWeight='700';
+      b.style.background=x.bg;
+      b.style.border='1px solid '+x.bd;
+      b.style.color=x.cl;
+      b.style.boxShadow='0 8px 22px rgba(17,24,39,.10)';
+    });
+  }
+  // run when admin panel toggles
+  const obs=new MutationObserver(applyAdminBtnStyles);
+  obs.observe(document.body,{subtree:true,childList:true});
+  window.addEventListener('load', applyAdminBtnStyles);
+})();
 </script>
 
 <div id="copyToast">已复制：pinking0000</div>
@@ -3090,142 +3289,66 @@ const btnRefresh = document.getElementById("adminRefresh");
 </script>
 
 
-<script>
-
-
-
-
-<style>
-/* === A：居中但向下 60px（只改 transform，不改其它结构） === */
-.login-box{
-  transform: translate(-50%, -50%) translateY(60px) scale(.98) !important;
-}
-.login-box.fx-open{
-  transform: translate(-50%, -50%) translateY(60px) scale(1) !important;
-}
-</style>
-
-
-<style>
-/* === A2：强制水平居中修复（解决“偏右”） === */
-#loginBox,
-.login-box{
-  position: fixed !important;
-  left: 50% !important;
-  top: 50% !important;
-  right: auto !important;
-  bottom: auto !important;
-  margin: 0 !important;
-  transform: translate(-50%, -50%) translateY(60px) !important;
-}
-.login-box.fx-open{
-  transform: translate(-50%, -50%) translateY(60px) !important;
-}
-</style>
-
-
-<style>
-/* === A-稳定版：不受任何父级 transform/scale 影响（把遮罩/弹窗挂到 body，遮罩 flex 居中） === */
-#loginBackdrop{
-  position: fixed !important;
-  inset: 0 !important;
-  display: none !important;
-  z-index: 999998 !important;
-  background: rgba(0,0,0,.18) !important;
-  backdrop-filter: blur(2px) !important;
-
-  /* flex 负责居中 */
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 16px !important;
-  box-sizing: border-box !important;
-}
-
-/* 往下挪一点：只影响垂直方向 */
-#loginBackdrop.active{
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-#loginBox,
-.login-box{
-  /* 弹窗本体交给 backdrop flex 定位 */
-  position: relative !important;
-  left: auto !important;
-  top: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  margin: 0 !important;
-  transform: translateY(60px) !important; /* A：下移 */
-  width: min(92vw, 360px) !important;
-  max-height: calc(100dvh - 120px) !important;
-  overflow: auto !important;
-}
-
-/* 禁掉“开合动画”里可能带的 translate(-50%,-50%) */
-.login-box.fx-open,
-.login-box.fx-close{
-  transform: translateY(60px) !important;
-}
-</style>
+<div id="appNotice"><div class="main"></div><div class="sub"></div></div>
 
 <script>
-/* === A-稳定版：打开登录时把遮罩/弹窗都挂到 body，避免被任何祖先 transform 影响 === */
+/* === 登录框强制挂到遮罩层：确保真正居中（不受菜单卡片布局影响） + 美化提示 === */
 (function(){
-  function ensureMount(){
-    var bd  = document.getElementById('loginBackdrop');
+  function ensureLoginModalParent(){
     var box = document.getElementById('loginBox');
-    if(!bd || !box) return;
-
-    // 关键：遮罩必须是 body 的直接子元素
-    if(bd.parentNode !== document.body){
-      document.body.appendChild(bd);
-    }
-    // 弹窗放到遮罩里
-    if(box.parentNode !== bd){
-      bd.appendChild(box);
+    var backdrop = document.getElementById('loginBackdrop');
+    if(!box || !backdrop) return;
+    if(box.parentNode !== backdrop){
+      try{ backdrop.appendChild(box); }catch(e){}
     }
   }
 
-  var oldToggle = window.toggleLoginBox;
-  window.toggleLoginBox = function(show){
-    ensureMount();
-    var bd  = document.getElementById('loginBackdrop');
-    var box = document.getElementById('loginBox');
-    if(!bd || !box){
-      if(typeof oldToggle === 'function') return oldToggle(show);
-      return;
-    }
-
-    // 计算目标状态
-    var isOpen = (getComputedStyle(box).display !== 'none');
-    var shouldOpen = (show===undefined) ? (!isOpen) : !!show;
-
-    box.style.display = shouldOpen ? 'block' : 'none';
-    bd.classList.toggle('active', shouldOpen);
+  window.showAppNotice = function(title, subtitle){
+    var n = document.getElementById('appNotice');
+    if(!n) return;
+    var main = n.querySelector('.main') || n;
+    var sub  = n.querySelector('.sub');
+    if(main) main.textContent = title || '';
+    if(sub) sub.textContent = subtitle || '';
+    n.classList.add('show');
+    clearTimeout(n.__t);
+    n.__t = setTimeout(function(){ n.classList.remove('show'); }, 1400);
   };
 
   document.addEventListener('DOMContentLoaded', function(){
-    ensureMount();
-  }, {once:true});
+    ensureLoginModalParent();
+  });
 
-  // 点遮罩关闭
-  document.addEventListener('click', function(e){
-    var bd = document.getElementById('loginBackdrop');
-    if(!bd) return;
-    if(e.target === bd){
-      window.toggleLoginBox(false);
-    }
-  }, true);
+  var mo = new MutationObserver(function(){ ensureLoginModalParent(); });
+  mo.observe(document.documentElement, {subtree:true, childList:true});
+})();
+</script>
+
+
+<script>
+/* === 登录按钮/取消兜底绑定：防止某些浏览器事件丢失 === */
+(function(){
+  function bindOnce(){
+    var box = document.getElementById('loginBox');
+    var cancel = document.getElementById('loginCancel');
+    var backdrop = document.getElementById('loginBackdrop');
+    if(!box || !cancel || !backdrop) return;
+
+    if(cancel.__bound) return;
+    cancel.__bound = true;
+
+    cancel.addEventListener('click', function(e){
+      e.preventDefault();
+      box.style.display = 'none';
+      backdrop.classList.remove('show');
+      document.body.classList.remove('login-open');
+    }, false);
+  }
+  document.addEventListener('DOMContentLoaded', bindOnce);
+  var mo = new MutationObserver(bindOnce);
+  mo.observe(document.documentElement, {subtree:true, childList:true});
 })();
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
