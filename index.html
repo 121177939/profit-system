@@ -1195,6 +1195,99 @@ table input, table select, table textarea{
   box-sizing: border-box;
 }
 
+
+
+/* ===================== B：自适应列宽（Grid 重构 v6-B）===================== */
+/* 说明：此模式不再追求“列对齐”，而是让每个输入框按内容自适应宽度，更像表单/标签流。 */
+.grid-table{ display:none; padding: 10px; gap: 10px; flex-direction:column; }
+.grid-row{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 12px 30px rgba(15,23,42,.07);
+}
+.grid-chip{
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: rgba(255,255,255,.86);
+  min-width: 110px;
+}
+.grid-chip .lbl{
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(15,23,42,.55);
+}
+.grid-chip .val{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+.grid-chip .val input{
+  width: auto !important;
+  min-width: 40px;
+  max-width: 70vw;
+  height: 40px;
+  padding: 10px 10px;
+  border-radius: 14px !important;
+  font-weight: 900;
+  box-sizing: content-box !important; /* 让宽度更贴近内容 */
+}
+.grid-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 6px;
+}
+.grid-title{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap: 4px;
+}
+.grid-title .t{
+  font-weight: 950;
+  color: rgba(15,23,42,.92);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.grid-title .s{
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(15,23,42,.56);
+}
+.grid-profit{
+  font-weight: 950;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.75);
+}
+.grid-actions{
+  width: 100%;
+  display:flex;
+  gap: 10px;
+}
+.grid-actions .delete-btn{
+  width: 100%;
+  border-radius: 14px !important;
+}
+
+/* 默认启用 Grid（更像自适应），如需回到表格可自行切回 display */
+#orders-table{ display:none !important; }
+.grid-table{ display:flex !important; }
+
 </style>
 </head>
 <body>
@@ -1267,6 +1360,7 @@ table input, table select, table textarea{
         </div>
         
         <div class="table-container">
+            <div id="gridTable" class="grid-table" aria-label="Grid Table"></div>
             <table id="orders-table">
                 <thead>
                     <tr>
