@@ -2192,29 +2192,113 @@ body.login-open .cloud-addon-card{ display:none !important; }
         
         // 监听页面离开前保存数据
         
-        /* ========= 备注扫码功能 ========= */
+        
+        /* ========= 备注扫码功能（零延迟优化版） ========= */
         let currentScanTargetInput = null;
-        let html5QrCode = null;
 
+        // 扫码状态（本地解码优先：BarcodeDetector；不支持则回退 html5-qrcode）
+        const __scanState = {
+            active: false,
+            ready: false,
+            mode: 'auto', // 'bd' | 'h5'
+            stream: null,
+            video: null,
+            stopFn: null,
+            detector: null,
+            rafId: null,
+            h5: null
+        };
+
+        // 弹窗（保持 UI 不变：右上角“关闭 ✖” + 画面区域）
         const scannerModal = document.createElement('div');
+        scannerModal.id = 'scannerModal';
         scannerModal.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,.6);
-        display:none;align-items:center;justify-content:center;z-index:9999;
+          position:fixed;inset:0;background:rgba(0,0,0,.6);
+          display:none;align-items:center;justify-content:center;z-index:2147483647;
         `;
         scannerModal.innerHTML = `
-        <div style="background:#fff;width:90%;max-width:420px;border-radius:10px;padding:10px;">
-            <div style="text-align:right;color:#e74c3c;font-size:14px;cursor:pointer;" id="closeScannerBtn">关闭 ✖</div>
-            <div id="reader" style="width:100%;"></div>
-        </div>
+          <div style="background:#fff;width:90%;max-width:420px;border-radius:10px;padding:10px;">
+              <div style="text-align:right;color:#e74c3c;font-size:14px;cursor:pointer;" id="closeScannerBtn">关闭 ✖</div>
+              <div id="reader" style="width:100%;"></div>
+          </div>
         `;
         document.body.appendChild(scannerModal);
 
-        function openScanner(inputEl){
-            currentScanTargetInput = inputEl;
-            scannerModal.style.display = 'flex';
+        // 在 reader 中创建 video（BarcodeDetector 用）
+        function ensureVideoEl(){
+            if(__scanState.video) return __scanState.video;
+            const holder = scannerModal.querySelector('#reader');
+            const v = document.createElement('video');
+            v.setAttribute('playsinline','');
+            v.muted = true;
+            v.style.width = '100%';
+            v.style.borderRadius = '8px';
+            holder.innerHTML = '';
+            holder.appendChild(v);
+            __scanState.video = v;
+            return v;
+        }
 
-            html5QrCode = new Html5Qrcode("reader");
-            // 仅用于：扫描条形码/二维码，然后写入「备注」输入框（本地数据优先，不触碰其它字段）
+        async function prewarmBarcodeDetector(){
+            if(!('BarcodeDetector' in window)) return false;
+
+            // 初始化 detector
+            if(!__scanState.detector){
+                try{
+                    __scanState.detector = new BarcodeDetector({ formats: ['qr_code','code_128','ean_13','ean_8','upc_a','upc_e','itf'] });
+                }catch(e){
+                    // 部分实现不支持 formats 参数
+                    __scanState.detector = new BarcodeDetector();
+                }
+            }
+
+            // 复用摄像头 stream（一次授权，后续零延迟）
+            if(!__scanState.stream){
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                __scanState.stream = stream;
+            }
+
+            const v = ensureVideoEl();
+            if(v.srcObject !== __scanState.stream){
+                v.srcObject = __scanState.stream;
+                await v.play();
+            }
+
+            // 启动常驻循环（关闭弹窗时不 detect，打开时立即 detect -> 近似零延迟）
+            if(!__scanState.rafId){
+                const loop = async ()=>{
+                    __scanState.rafId = requestAnimationFrame(loop);
+                    if(!__scanState.active) return;
+                    try{
+                        const codes = await __scanState.detector.detect(__scanState.video);
+                        if(codes && codes.length && currentScanTargetInput){
+                            const val = codes[0].rawValue || '';
+                            if(val){
+                                currentScanTargetInput.value = val;
+                                currentScanTargetInput.dispatchEvent(new Event('change'));
+                                closeScanner();
+                            }
+                        }
+                    }catch(e){}
+                };
+                loop();
+            }
+
+            __scanState.mode = 'bd';
+            __scanState.ready = true;
+            return true;
+        }
+
+        // 回退：html5-qrcode（兼容 Samsung Internet 等不支持 BarcodeDetector 的情况）
+        async function startHtml5Qrcode(){
+            // 动态切回 reader 容器
+            const holder = scannerModal.querySelector('#reader');
+            holder.innerHTML = '<div id="h5reader" style="width:100%;"></div>';
+
+            __scanState.h5 = new Html5Qrcode("h5reader");
             let _formatsToSupport = undefined;
             try {
                 if (typeof Html5QrcodeSupportedFormats !== "undefined") {
@@ -2230,161 +2314,103 @@ body.login-open .cloud-addon-card{ display:none !important; }
                     ].filter(Boolean);
                 }
             } catch(e) {}
-            html5QrCode.start(
+
+            await __scanState.h5.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: 280, aspectRatio: 1.7778, disableFlip: false, formatsToSupport: _formatsToSupport },
+                { fps: 12, qrbox: 280, aspectRatio: 1.7778, disableFlip: false, formatsToSupport: _formatsToSupport },
                 decodedText => {
-                    currentScanTargetInput.value = decodedText;
-                    currentScanTargetInput.dispatchEvent(new Event('change'));
+                    if(currentScanTargetInput){
+                        currentScanTargetInput.value = decodedText;
+                        currentScanTargetInput.dispatchEvent(new Event('change'));
+                    }
                     closeScanner();
                 }
-            ).catch(err=>{
-                showToast("摄像头启动失败，请检查浏览器权限");
+            );
+            __scanState.mode = 'h5';
+            __scanState.ready = true;
+        }
+
+        async function openScanner(inputEl){
+            currentScanTargetInput = inputEl;
+            scannerModal.style.display = 'flex';
+
+            // 激活检测：若已预热 -> 立刻开始识别（零延迟）
+            __scanState.active = true;
+
+            // 优先 BarcodeDetector
+            try{
+                const ok = await prewarmBarcodeDetector();
+                if(ok) return;
+            }catch(e){
+                // 继续回退
+            }
+
+            // 回退 html5-qrcode（首次可能慢，但我们不再每次 stop/clear，关闭仅暂停）
+            try{
+                if(__scanState.mode !== 'h5' || !__scanState.h5){
+                    await startHtml5Qrcode();
+                }else{
+                    // 已有实例：直接 resume
+                    // html5-qrcode 没有统一 resume API，这里做“重启但不销毁容器”，仍比重新加载库快
+                    await startHtml5Qrcode();
+                }
+            }catch(err){
+                showToast("摄像头启动失败，请检查权限或换Chrome尝试");
                 closeScanner();
-            });
+            }
         }
 
-        function closeScanner(){
+        async function closeScanner(){
             scannerModal.style.display = 'none';
-            if(html5QrCode){
-                html5QrCode.stop().then(()=>html5QrCode.clear());
-                html5QrCode = null;
+            __scanState.active = false;
+            currentScanTargetInput = null;
+
+            // BarcodeDetector 模式：不关摄像头 -> 下次零延迟
+            if(__scanState.mode === 'bd'){
+                return;
+            }
+
+            // html5-qrcode：停止但保留资源引用，避免重复 new（尽量减轻下一次延迟）
+            if(__scanState.h5){
+                try{
+                    await __scanState.h5.stop();
+                    await __scanState.h5.clear();
+                }catch(e){}
+                __scanState.h5 = null;
             }
         }
 
-        document.addEventListener('click', function(e){
-            if(e.target && e.target.classList.contains('scan-btn')){
-                const input = e.target.closest('td').querySelector('.note-input');
-                if(input) openScanner(input);
-            }
+        // 绑定关闭按钮
+        scannerModal.addEventListener('click', function(e){
             if(e.target && e.target.id === 'closeScannerBtn'){
                 closeScanner();
             }
         });
 
-        window.addEventListener('beforeunload', function() {
-            updateOrdersFromTable();
-            localStorage.setItem('orderProfitData', JSON.stringify(orders));
+        // 点击“扫码”按钮触发（备注输入框）
+        document.addEventListener('click', function(e){
+            if(e.target && e.target.classList.contains('scan-btn')){
+                const input = e.target.closest('td').querySelector('.note-input');
+                if(input) openScanner(input);
+            }
         });
-    </script>
 
-<style>
-.cloud-addon-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:sans-serif}
-.cloud-addon-toggle{width:56px;height:56px;border-radius:16px;background:#111827;color:#fff;
-display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
-.cloud-addon-card{position:fixed;right:20px;bottom:90px;width:260px;background:#fff;
-border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:10px;display:none}
-.cloud-addon-card button{width:100%;margin:6px 0;padding:10px;border-radius:12px;
-border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
-
-/* 登录盒子（更美观） */
-.login-box{margin-top:8px;padding:10px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc}
-.login-title{font-weight:800;font-size:14px;margin-bottom:8px;color:#111827}
-.login-field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
-.login-field label{font-size:12px;color:#6b7280}
-.login-field input{height:36px;border-radius:10px;border:1px solid #e5e7eb;padding:0 10px;font-size:14px;outline:none;background:#fff}
-.login-field input:focus{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(147,197,253,.35)}
-.login-actions{display:flex;gap:8px;margin-top:6px}
-.login-actions button{flex:1;height:34px;border-radius:10px;font-weight:800;cursor:pointer}
-.login-btn-primary{
-  background:#fff;
-  color:#111827;
-  border:1px solid rgba(17,24,39,.25);
-}
-.login-btn-ghost{background:#fff;color:#111827;border:1px solid #e5e7eb}
-.login-msg{margin-top:8px;font-size:12px;color:#b91c1c;line-height:1.4}
-
-/* 管理员三件套：小尺寸横排 */
-#adminTools{margin-top:10px !important;}
-#adminPanel .admin-action-row, .admin-action-row{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
-#adminPanel .admin-action-row .admin-btn, .admin-action-row .admin-btn{
-  flex:1;height:36px;padding:0 8px;font-size:14px;border-radius:10px;white-space:nowrap;margin:0 !important;
-}
-.admin-btn-create{background:#1f2937;color:#fff;border:0}
-.admin-btn-reset{background:#b91c1c;color:#fff;border:0}
-.admin-btn-delete{background:#fff;color:#b91c1c;border:1px solid #b91c1c}
-
-/* 面板里的按钮整体更紧凑一点 */
-.cloud-addon-card{width:280px;}
-.cloud-addon-card button{padding:9px 10px;font-size:14px;border-radius:12px}
-</style>
-
-<div id="loginBackdrop"></div>
-<div class="cloud-addon-panel">
-  <div class="cloud-addon-card" id="addon-card">
-    <button id="btnCloudLogin">🔐 登录</button>
-    <div id="loginBox" class="login-box" style="display:none">
-      <div class="login-title">登录云端</div>
-
-    <div class="login-contact">
-      <span class="login-contact-label">联系管理员vx：</span>
-      <button type="button" class="login-contact-copy" id="copyAdminVxBtn" data-copy="pinking0000">pinking0000（点我复制）</button>
-    </div>
-    
-      <div class="login-field">
-        <label>邮箱</label>
-        <input id="loginEmail" type="email" placeholder="例如：123456@qq.com" autocomplete="username" />
-      </div>
-      <div class="login-field">
-        <label>密码</label>
-        <input id="loginPassword" type="password" placeholder="请输入密码" autocomplete="current-password" />
-      </div>
-      <div class="login-actions">
-        <button id="loginSubmit" class="login-btn-primary">登录</button>
-        <button id="loginCancel" class="login-btn-ghost">取消</button>
-      </div>
-      <div id="loginMsg" class="login-msg" style="display:none"></div>
-    </div>
-    <button id="btnCloudLogout">🚪 退出</button>
-    <button id="btnCloudSave">⬆️ 保存到云端</button>
-    <button id="btnCloudLoad">⬇️ 从云端拉取</button>
-    <button id="btnCloudAdmin" style="display:none">👤 管理员</button>
-
-    <div class="admin-box" id="adminBox" style="display:none;margin-top:8px;border-top:1px solid #e5e7eb;padding-top:8px">
-      <div style="font-weight:700;margin-bottom:6px">管理员面板（仅管理员邮箱可见）</div>
-      <div style="font-size:12px;color:#555;margin-bottom:8px">
-        这里控制“是否允许登录”。被禁用的账号登录后会立刻被退出，并提示“账号已被管理员禁用”。
-      </div>
-      <div class="am-row" style="margin-top:0">
-        <button id="adminRefresh">刷新用户列表</button>
-      </div>
-
-      <div id="adminTools" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-        <div class="admin-action-row">
-  <button id="adminCreateUserBtn" class="admin-btn admin-btn-create">新建账号</button>
-  <button id="adminResetPwdBtn" class="admin-btn admin-btn-reset">重置密码</button>
-  <button id="adminDeleteUserBtn" class="admin-btn admin-btn-delete">删除账号</button>
-</div>
-      </div>
-
-      <div style="overflow:auto;max-height:220px;margin-top:8px">
-        <table style="width:100%;border-collapse:collapse">
-          <thead>
-            <tr><th style="text-align:left;padding:6px 4px;border-bottom:1px solid #eee">邮箱</th><th style="text-align:left;padding:6px 4px;border-bottom:1px solid #eee">允许登录</th><th style="text-align:left;padding:6px 4px;border-bottom:1px solid #eee">创建时间</th></tr>
-          </thead>
-          <tbody id="adminTbody"></tbody>
-        </table>
-      </div>
-
-      <details style="margin-top:10px">
-        <summary style="cursor:pointer;font-size:12px;color:#555">如果列表为空/报错：点这里复制一次初始化SQL（在Supabase的SQL Editor运行）</summary>
-        <textarea class="sqlbox" readonly id="adminSql" style="width:100%;min-height:140px;margin-top:6px;border-radius:10px;border:1px solid #e5e7eb;padding:8px;font-size:12px"></textarea>
-      </details>
-    </div>
-  </div>
-  <div class="cloud-addon-toggle" id="addon-toggle">菜单</div>
-</div>
-
-<script>
-(function(){
- const t=document.getElementById('addon-toggle');
- const c=document.getElementById('addon-card');
- t.onclick=function(){ c.style.display = (c.style.display==='block')?'none':'block'; };
-})();
-</script>
-
-
-<script>
+        // 可选：首次用户交互时预热（不弹窗、不打扰）
+        // 这样第二次及以后基本零延迟
+        (function(){
+            let warmed = false;
+            const warmOnce = async ()=>{
+                if(warmed) return;
+                warmed = true;
+                try{
+                    await prewarmBarcodeDetector();
+                }catch(e){}
+                window.removeEventListener('touchstart', warmOnce, true);
+                window.removeEventListener('mousedown', warmOnce, true);
+            };
+            window.addEventListener('touchstart', warmOnce, true);
+            window.addEventListener('mousedown', warmOnce, true);
+        })();
 /* ======== 权限门禁：登录后才能 增加 / 导入 / 导出（Step 2） ======== */
 (function(){
   // 单一真相源：登录态（Step2 仅UI权限，不触碰数据/云端）
