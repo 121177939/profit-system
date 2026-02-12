@@ -3333,6 +3333,18 @@ const btnRefresh = document.getElementById("adminRefresh");
 }
 </style>
 
+
+<style>
+/* === V11：登录框向下（保持水平居中，改为顶部开始并用 padding-top 下移） === */
+#loginBackdrop.active{
+  display: flex !important;
+  align-items: center !important;          /* 水平居中 */
+  justify-content: flex-start !important;  /* 从顶部开始 */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10vh) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+}
+</style>
+
 </body>
 </html>
 
