@@ -1601,9 +1601,8 @@ body.login-open .cloud-addon-card{ display:none !important; }
         }
         
         // 删除行
-        async function deleteRow(index) {
-            const __ok = await (window.appConfirm ? window.appConfirm('确定要删除这条订单记录吗？','确认删除') : Promise.resolve(confirm('确定要删除这条订单记录吗？')));
-            if (__ok) {
+        function deleteRow(index) {
+            if (confirm('确定要删除这条订单记录吗？')) {
                 // 从数组中删除
                 const deletedCustomer = orders[index].customer;
                 const deletedProduct = orders[index].product;
@@ -1765,7 +1764,7 @@ body.login-open .cloud-addon-card{ display:none !important; }
             if (!file) return;
             
             const reader = new FileReader();
-            reader.onload = async function(e) {
+            reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
@@ -1795,8 +1794,7 @@ body.login-open .cloud-addon-card{ display:none !important; }
                     }
                     
                     // 确认导入
-                    const __ok = await (window.appConfirm ? window.appConfirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`,'确认导入') : Promise.resolve(confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)));
-                    if (__ok) {
+                    if (confirm(`从Excel文件中找到 ${importedOrders.length} 条订单记录，是否导入？`)) {
                         orders = importedOrders;
                         // 重置排序状态为日期降序
                         dateSortState = 'desc';
@@ -1951,9 +1949,9 @@ body.login-open .cloud-addon-card{ display:none !important; }
                 const newButton = button.cloneNode(true);
                 button.parentNode.replaceChild(newButton, button);
                 
-                newButton.addEventListener('click', async function() {
+                newButton.addEventListener('click', function() {
                     const index = parseInt(this.getAttribute('data-index'));
-                    await deleteRow(index);
+                    deleteRow(index);
                 });
             });
         }
@@ -2548,15 +2546,18 @@ function toast(msg){
   }
 
   window.saveSnapshotToCloud = async function saveSnapshotToCloud(){
-    if(!window.__isLoggedIn){ await (window.appAlert?window.appAlert('请先登录','需要登录'):Promise.resolve(alert('请先登录'))); return; }
-    const __ok = await (window.appConfirm ? window.appConfirm('是否确认用【当前本地数据】覆盖云端？','确认覆盖','覆盖','取消') : Promise.resolve(confirm('是否确认用【当前本地数据】覆盖云端？')));
+    if(!window.__isLoggedIn){
+    if(window.cloudAlert) await window.cloudAlert('请先登录','需要登录'); else alert('请先登录');
+    return;
+  }
+    const __ok = window.cloudConfirm ? await window.cloudConfirm('是否确认用【当前本地数据】覆盖云端？','确认覆盖','覆盖','取消') : confirm('是否确认用【当前本地数据】覆盖云端？');
     if(!__ok) return;
 
     const client = getClient();
-    if(!client){ await (window.appAlert?window.appAlert('Supabase 未初始化','提示'):Promise.resolve(alert('Supabase 未初始化'))); return; }
+    if(!client){ if(window.cloudAlert) await window.cloudAlert('Supabase 未初始化','提示'); else alert('Supabase 未初始化'); return; }
 
     const { data:u, error:ue } = await client.auth.getUser();
-    if(ue || !u?.user){ await (window.appAlert?window.appAlert('无法获取用户','提示'):Promise.resolve(alert('无法获取用户'))); return; }
+    if(ue || !u?.user){ if(window.cloudAlert) await window.cloudAlert('无法获取用户','提示'); else alert('无法获取用户'); return; }
 
     const payload = { id: u.user.id, data: getOrders() };
 
@@ -2570,13 +2571,16 @@ function toast(msg){
   };
 
   window.loadSnapshotFromCloud = async function loadSnapshotFromCloud(){
-    if(!window.__isLoggedIn){ await (window.appAlert?window.appAlert('请先登录','需要登录'):Promise.resolve(alert('请先登录'))); return; }
+    if(!window.__isLoggedIn){
+    if(window.cloudAlert) await window.cloudAlert('请先登录','需要登录'); else alert('请先登录');
+    return;
+  }
 
     const client = getClient();
-    if(!client){ await (window.appAlert?window.appAlert('Supabase 未初始化','提示'):Promise.resolve(alert('Supabase 未初始化'))); return; }
+    if(!client){ if(window.cloudAlert) await window.cloudAlert('Supabase 未初始化','提示'); else alert('Supabase 未初始化'); return; }
 
     const { data:u, error:ue } = await client.auth.getUser();
-    if(ue || !u?.user){ await (window.appAlert?window.appAlert('无法获取用户','提示'):Promise.resolve(alert('无法获取用户'))); return; }
+    if(ue || !u?.user){ if(window.cloudAlert) await window.cloudAlert('无法获取用户','提示'); else alert('无法获取用户'); return; }
 
     const { data, error } = await client
       .from('app_state_user')
@@ -2584,15 +2588,17 @@ function toast(msg){
       .eq('id', u.user.id)
       .maybeSingle();
 
-    if(error){ await (window.appAlert?window.appAlert('拉取失败：' + error.message,'拉取失败'):Promise.resolve(alert('拉取失败：' + error.message))); return; }
-    if(!data || data.data == null){ await (window.appAlert?window.appAlert('云端暂无数据','提示'):Promise.resolve(alert('云端暂无数据'))); return; }
+    if(error){ if(window.cloudAlert) await window.cloudAlert('拉取失败：' + error.message,'拉取失败'); else alert('拉取失败：' + error.message); return; }
+    if(!data || data.data == null){ if(window.cloudAlert) await window.cloudAlert('云端暂无数据','提示'); else alert('云端暂无数据'); return; }
 
-    const __ok = await (window.appConfirm ? window.appConfirm('云端数据将【覆盖当前本地数据】，是否确认？','确认覆盖','覆盖','取消') : Promise.resolve(confirm('云端数据将【覆盖当前本地数据】，是否确认？')));
+    const __ok = window.cloudConfirm ? await window.cloudConfirm('云端数据将【覆盖当前本地数据】，是否确认？','确认覆盖','覆盖','取消') : confirm('云端数据将【覆盖当前本地数据】，是否确认？');
 
     if(!__ok) return;
 
     setOrders(data.data);
-    if(window.showAppNotice) window.showAppNotice('已从云端拉取','本地数据已更新'); else await (window.appAlert?window.appAlert('已从云端拉取','成功'):Promise.resolve(alert('已从云端拉取')));
+    if(window.showAppNotice) window.showAppNotice('已从云端拉取','本地数据已更新');
+    else if(window.cloudAlert) await window.cloudAlert('已从云端拉取','成功');
+    else alert('已从云端拉取');
   };
 })();
 </script>
@@ -2800,7 +2806,7 @@ with check (
         try{ await client.auth.signOut(); }catch(e){}
         window.__currentUserEmail = "";
         try{ window.__setLoginState(false); }catch(e){ window.__isLoggedIn=false; }
-        await (window.appAlert?window.appAlert('账号已被管理员禁用','已禁用'):Promise.resolve(alert('账号已被管理员禁用')));
+        alert("账号已被管理员禁用");
       }
     }catch(e){}
   }
@@ -2858,7 +2864,7 @@ with check (
         const cur = a.getAttribute("data-enabled")==="1";
         const next = !cur;
         const { error: upE } = await client.from(PROFILE_TABLE).update({ disabled: !next }).eq("id", uid);
-        if(upE){ await (window.appAlert?window.appAlert('更新失败：' + (upE.message||upE),'更新失败'):Promise.resolve(alert('更新失败：' + (upE.message||upE)))); return; }
+        if(upE){ alert("更新失败：" + (upE.message||upE)); return; }
         loadAdminList();
       };
     });
@@ -2936,7 +2942,7 @@ async function doLogin(email, pw){
     window.__currentUserEmail = "";
     try{ window.__setLoginState(false); }catch(e){ window.__isLoggedIn=false; }
     refreshAdminVisibility();
-    if(window.showAppNotice) window.showAppNotice('已退出','已关闭功能权限'); else await (window.appAlert?window.appAlert('已退出','提示'):Promise.resolve(alert('已退出')));
+    alert("已退出");
   }
 
   function bind(){
@@ -2971,9 +2977,9 @@ const btnRefresh = document.getElementById("adminRefresh");
     const btnCreate = document.getElementById("adminCreateUserBtn");
     if(btnCreate) btnCreate.onclick = async ()=>{
       try{
-        const email = (await (window.appPrompt ? window.appPrompt('请输入要新建的用户邮箱：','新建账号') : Promise.resolve(prompt('请输入要新建的用户邮箱：')) ) || "").trim();
+        const email = (prompt("请输入要新建的用户邮箱：")||"").trim();
         if(!email) return;
-        let pw = (await (window.appPrompt ? window.appPrompt('请输入初始密码（留空自动生成强密码）：','设置初始密码') : Promise.resolve(prompt('请输入初始密码（留空自动生成强密码）：')) ) || "").trim();
+        let pw = (prompt("请输入初始密码（留空自动生成强密码）：")||"").trim();
         if(!pw) pw = _genStrongPw(12);
         if(pw.length < 8){ alert("密码至少8位"); return; }
         await __callEdgeBodyToken("admin-create-user", {
@@ -2981,18 +2987,17 @@ const btnRefresh = document.getElementById("adminRefresh");
           target_email: email,
           target_password: pw
         });
-        if(window.showAppNotice) window.showAppNotice('创建成功','已生成账号');
-        await (window.appAlert?window.appAlert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw,'创建成功'):Promise.resolve(alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw)));
+        alert("创建成功！\n邮箱：" + email + "\n初始密码：" + pw);
         loadAdminList();
-      }catch(e){ await (window.appAlert?window.appAlert("创建失败：" + (e?.message||e),'创建失败'):Promise.resolve(alert("创建失败：" + (e?.message||e)))); }
+      }catch(e){ alert("创建失败：" + (e?.message||e)); }
     };
 
     const btnReset = document.getElementById("adminResetPwdBtn");
     if(btnReset) btnReset.onclick = async ()=>{
       try{
-        const email = (await (window.appPrompt ? window.appPrompt('请输入要重置密码的用户邮箱：','重置密码') : Promise.resolve(prompt('请输入要重置密码的用户邮箱：')) ) || "").trim();
+        const email = (prompt("请输入要重置密码的用户邮箱：")||"").trim();
         if(!email) return;
-        let pw = (await (window.appPrompt ? window.appPrompt('请输入新密码（留空自动生成强密码）：','设置新密码') : Promise.resolve(prompt('请输入新密码（留空自动生成强密码）：')) ) || "").trim();
+        let pw = (prompt("请输入新密码（留空自动生成强密码）：")||"").trim();
         if(!pw) pw = _genStrongPw(12);
         if(pw.length < 8){ alert("密码至少8位"); return; }
         await __callEdgeBodyToken("reset-password", {
@@ -3000,28 +3005,25 @@ const btnRefresh = document.getElementById("adminRefresh");
           target_email: email,
           new_password: pw
         });
-        if(window.showAppNotice) window.showAppNotice('重置成功','密码已更新');
-        await (window.appAlert?window.appAlert("重置成功！\n邮箱：" + email + "\n新密码：" + pw,'重置成功'):Promise.resolve(alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw)));
-      }catch(e){ await (window.appAlert?window.appAlert("重置失败：" + (e?.message||e),'重置失败'):Promise.resolve(alert("重置失败：" + (e?.message||e)))); }
+        alert("重置成功！\n邮箱：" + email + "\n新密码：" + pw);
+      }catch(e){ alert("重置失败：" + (e?.message||e)); }
     };
 
     const btnDel = document.getElementById("adminDeleteUserBtn");
     if(btnDel) btnDel.onclick = async ()=>{
       try{
-        const email = (await (window.appPrompt ? window.appPrompt('请输入要删除的账号邮箱：','删除账号') : Promise.resolve(prompt('请输入要删除的账号邮箱：')) ) || "").trim();
+        const email = (prompt("请输入要删除的账号邮箱：")||"").trim();
         if(!email) return;
-        const __ok = await (window.appConfirm ? window.appConfirm("确定删除账号：" + email + " ?\n删除后不可恢复",'确认删除','删除','取消') : Promise.resolve(confirm("确定删除账号：" + email + " ?\n删除后不可恢复")));
-        if(!__ok) return;
+        if(!confirm("确定删除账号：" + email + " ?\n删除后不可恢复")) return;
         // 兼容旧函数名：admin-delete-user，同时兼容你 zip 里的 delete-user
         try {
           await __callEdgeBodyToken("admin-delete-user", { admin_email: getCurrentEmail(), target_email: email, email });
         } catch(e1) {
           await __callEdgeBodyToken("delete-user", { admin_email: getCurrentEmail(), target_email: email, email });
         }
-        if(window.showAppNotice) window.showAppNotice('删除成功','账号已移除');
-        await (window.appAlert?window.appAlert("删除成功：" + email,'删除成功'):Promise.resolve(alert("删除成功：" + email)));
+        alert("删除成功：" + email);
         loadAdminList();
-      }catch(e){ await (window.appAlert?window.appAlert("删除失败：" + (e?.message||e),'删除失败'):Promise.resolve(alert("删除失败：" + (e?.message||e)))); }
+      }catch(e){ alert("删除失败：" + (e?.message||e)); }
     };
 
     refreshAdminVisibility();
@@ -3337,21 +3339,20 @@ const cancel = document.getElementById('loginCancel');
 
 
 <div id="appNotice"><div class="main"></div><div class="sub"></div></div>
-<div id="appModalBackdrop" style="display:none">
-  <div id="appModal" role="dialog" aria-modal="true">
-    <div id="appModalTitle">提示</div>
-    <div id="appModalMsg"></div>
-    <input id="appModalInput" type="text" style="display:none" />
-    <div id="appModalActions">
-      <button type="button" id="appModalCancel" class="am-btn am-btn-ghost">取消</button>
-      <button type="button" id="appModalOk" class="am-btn am-btn-primary">确定</button>
+<div id="cloudModalBackdrop" style="display:none">
+  <div id="cloudModal" role="dialog" aria-modal="true">
+    <div id="cloudModalTitle">提示</div>
+    <div id="cloudModalMsg"></div>
+    <div id="cloudModalActions">
+      <button type="button" id="cloudModalCancel" class="cm-btn cm-btn-ghost">取消</button>
+      <button type="button" id="cloudModalOk" class="cm-btn cm-btn-primary">确定</button>
     </div>
   </div>
 </div>
 
 <style>
-/* === 极简白色弹窗体系（替代 alert/confirm/prompt） === */
-#appModalBackdrop{
+/* === 云端保存/拉取专用：极简白色弹窗（不影响管理员 prompt/alert） === */
+#cloudModalBackdrop{
   position:fixed;
   inset:0;
   background:rgba(17,24,39,.18);
@@ -3360,7 +3361,7 @@ const cancel = document.getElementById('loginCancel');
   align-items:center;
   justify-content:center;
 }
-#appModal{
+#cloudModal{
   width: min(92vw, 380px);
   background:#fff;
   color:#111827;
@@ -3372,44 +3373,29 @@ const cancel = document.getElementById('loginCancel');
   opacity: 0;
   transition: opacity 160ms cubic-bezier(.2,.8,.2,1), transform 160ms cubic-bezier(.2,.8,.2,1);
 }
-#appModalBackdrop.show{ display:flex; }
-#appModalBackdrop.show #appModal{
+#cloudModalBackdrop.show{ display:flex; }
+#cloudModalBackdrop.show #cloudModal{
   opacity: 1;
   transform: translateY(0);
 }
-#appModalTitle{
+#cloudModalTitle{
   font-size: 14px;
   font-weight: 800;
   letter-spacing: .2px;
 }
-#appModalMsg{
+#cloudModalMsg{
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.55;
   color: rgba(17,24,39,.8);
   white-space: pre-wrap;
 }
-#appModalInput{
-  margin-top: 10px;
-  width: 100%;
-  height: 44px;
-  border-radius: 14px;
-  border: 1px solid rgba(17,24,39,.14);
-  padding: 0 12px;
-  outline: none;
-  font-size: 14px;
-  background: rgba(255,255,255,.96);
-}
-#appModalInput:focus{
-  border-color: rgba(59,130,246,.45);
-  box-shadow: 0 0 0 4px rgba(59,130,246,.12);
-}
-#appModalActions{
+#cloudModalActions{
   margin-top: 12px;
   display:flex;
   gap: 10px;
 }
-#appModalActions .am-btn{
+#cloudModalActions .cm-btn{
   flex:1;
   height: 40px;
   border-radius: 14px;
@@ -3417,13 +3403,13 @@ const cancel = document.getElementById('loginCancel');
   font-weight: 800;
   cursor:pointer;
 }
-#appModalActions .am-btn:active{ transform: scale(.98); }
-.am-btn-ghost{
+#cloudModalActions .cm-btn:active{ transform: scale(.98); }
+.cm-btn-ghost{
   background:#fff;
   color:#111827;
   border:1px solid rgba(17,24,39,.18);
 }
-.am-btn-primary{
+.cm-btn-primary{
   background:#111827;
   color:#fff;
   border:1px solid rgba(17,24,39,.18);
@@ -3431,20 +3417,17 @@ const cancel = document.getElementById('loginCancel');
 </style>
 
 <script>
-/* === 极简白色弹窗 API：appAlert / appConfirm / appPrompt（Promise 版）=== */
+/* === 云端保存/拉取专用弹窗 API：cloudAlert / cloudConfirm（Promise 版，不覆盖原生） === */
 (function(){
-  const bd = document.getElementById('appModalBackdrop');
-  const modal = document.getElementById('appModal');
-  const titleEl = document.getElementById('appModalTitle');
-  const msgEl = document.getElementById('appModalMsg');
-  const inputEl = document.getElementById('appModalInput');
-  const okBtn = document.getElementById('appModalOk');
-  const cancelBtn = document.getElementById('appModalCancel');
-
-  if(!bd || !modal || !titleEl || !msgEl || !inputEl || !okBtn || !cancelBtn) return;
+  const bd = document.getElementById('cloudModalBackdrop');
+  const titleEl = document.getElementById('cloudModalTitle');
+  const msgEl = document.getElementById('cloudModalMsg');
+  const okBtn = document.getElementById('cloudModalOk');
+  const cancelBtn = document.getElementById('cloudModalCancel');
+  if(!bd || !titleEl || !msgEl || !okBtn || !cancelBtn) return;
 
   let resolver = null;
-  let mode = 'alert'; // alert | confirm | prompt
+  let mode = 'alert';
 
   function close(result){
     bd.classList.remove('show');
@@ -3452,33 +3435,17 @@ const cancel = document.getElementById('loginCancel');
     if(resolver){ const r = resolver; resolver=null; r(result); }
   }
 
-  function open(opts){
-    const o = opts || {};
+  function open(o){
+    o = o || {};
     mode = o.mode || 'alert';
-    titleEl.textContent = o.title || (mode==='prompt'?'输入':'提示');
+    titleEl.textContent = o.title || (mode==='confirm' ? '确认' : '提示');
     msgEl.textContent = (o.message==null?'':String(o.message));
 
-    // input
-    if(mode==='prompt'){
-      inputEl.style.display='block';
-      inputEl.type = (o.inputType||'text');
-      inputEl.value = (o.defaultValue==null?'':String(o.defaultValue));
-      inputEl.placeholder = o.placeholder || '';
-    }else{
-      inputEl.style.display='none';
-      inputEl.value = '';
-    }
-
-    // buttons
-    if(mode==='alert'){
-      cancelBtn.style.display='none';
+    if(mode === 'alert'){
+      cancelBtn.style.display = 'none';
       okBtn.textContent = o.okText || '知道了';
-    }else if(mode==='confirm'){
-      cancelBtn.style.display='block';
-      cancelBtn.textContent = o.cancelText || '取消';
-      okBtn.textContent = o.okText || '确定';
     }else{
-      cancelBtn.style.display='block';
+      cancelBtn.style.display = 'block';
       cancelBtn.textContent = o.cancelText || '取消';
       okBtn.textContent = o.okText || '确定';
     }
@@ -3486,56 +3453,30 @@ const cancel = document.getElementById('loginCancel');
     bd.style.display='flex';
     requestAnimationFrame(()=>bd.classList.add('show'));
 
-    // focus
-    setTimeout(()=>{
-      if(mode==='prompt') inputEl.focus();
-      else okBtn.focus();
-    }, 50);
+    setTimeout(()=>okBtn.focus(), 40);
 
     return new Promise(resolve=>{ resolver = resolve; });
   }
 
-  // backdrop click -> cancel (only for confirm/prompt)
   bd.addEventListener('click', (e)=>{
     if(e.target !== bd) return;
-    if(mode==='alert') close(true);
-    else close(mode==='prompt' ? null : false);
+    close(mode==='confirm' ? false : true);
   });
+  okBtn.addEventListener('click', ()=> close(true));
+  cancelBtn.addEventListener('click', ()=> close(false));
 
-  okBtn.addEventListener('click', ()=>{
-    if(mode==='prompt') close(inputEl.value);
-    else close(true);
-  });
-  cancelBtn.addEventListener('click', ()=>{
-    close(mode==='prompt' ? null : false);
-  });
-
-  inputEl.addEventListener('keydown', (e)=>{
-    if(e.key==='Enter'){ e.preventDefault(); okBtn.click(); }
-    if(e.key==='Escape'){ e.preventDefault(); cancelBtn.click(); }
-  });
   document.addEventListener('keydown', (e)=>{
-    if(bd.classList.contains('show') && e.key==='Escape'){
-      e.preventDefault();
-      if(mode==='alert') close(true);
-      else close(mode==='prompt' ? null : false);
-    }
+    if(!bd.classList.contains('show')) return;
+    if(e.key === 'Escape'){ e.preventDefault(); close(mode==='confirm' ? false : true); }
+    if(e.key === 'Enter'){ e.preventDefault(); close(true); }
   });
 
-  window.appAlert = function(message, title){
-    return open({ mode:'alert', title: title || '提示', message });
+  window.cloudAlert = function(message, title, okText){
+    return open({ mode:'alert', title, message, okText });
   };
-  window.appConfirm = function(message, title, okText, cancelText){
-    return open({ mode:'confirm', title: title || '确认', message, okText, cancelText });
+  window.cloudConfirm = function(message, title, okText, cancelText){
+    return open({ mode:'confirm', title, message, okText, cancelText });
   };
-  window.appPrompt = function(message, title, defaultValue, placeholder, inputType){
-    return open({ mode:'prompt', title: title || '输入', message, defaultValue, placeholder, inputType });
-  };
-
-  // 兜底：把原生 alert 变成白色浮层（confirm/prompt 不覆盖，因为同步不可用，代码里已替换）
-  try{
-    window.alert = function(msg){ window.appAlert(String(msg||'')); };
-  }catch(e){}
 })();
 </script>
 
