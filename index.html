@@ -2375,7 +2375,11 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
   // 单一真相源：登录态（Step2 仅UI权限，不触碰数据/云端）
   window.__isLoggedIn = false;
 
-  function toast(msg){
+  
+  // 权限变量（与权限控制相关的统一开关）：true 时视为拥有固定特权（不改变默认行为）
+  // 默认 false：与原逻辑完全一致
+  window.varIsFixedPrivileged = window.varIsFixedPrivileged === true;
+function toast(msg){
     try{ if(typeof showToast==='function') showToast(msg); else alert(msg); }
     catch(e){ alert(msg); }
   }
@@ -2394,18 +2398,21 @@ border:1px solid #e5e7eb;background:#f9fafb;font-weight:700;cursor:pointer}
       if(!isWriteButton(btn)) return;
 
       // 视觉态
-      btn.disabled = !window.__isLoggedIn;
-      btn.style.opacity = window.__isLoggedIn ? '1' : '0.55';
-      btn.style.cursor  = window.__isLoggedIn ? 'pointer' : 'not-allowed';
+      btn.disabled = !(window.__isLoggedIn || window.varIsFixedPrivileged);
+      btn.style.opacity = (window.__isLoggedIn || window.varIsFixedPrivileged) ? '1' : '0.55';
+      btn.style.cursor  = (window.__isLoggedIn || window.varIsFixedPrivileged) ? 'pointer' : 'not-allowed';
 
       // 点击门禁（兜底）
-      btn.addEventListener('click', function(e){
+      if(!btn.__gateBound){
+        btn.__gateBound = true;
+        btn.addEventListener('click', function(e){
         if(!window.__isLoggedIn){
           e.preventDefault(); e.stopPropagation();
           toast('请先登录后再使用该功能');
           return false;
         }
       }, true); // 捕获阶段，防止被其它监听吞掉
+      }
     });
   }
 
@@ -3286,7 +3293,6 @@ const cancel = document.getElementById('loginCancel');
   // Patch toast show to add class if exists
   const toast = document.getElementById(toastId);
   if(toast){
-    const origDisplaySetter = Object.getOwnPropertyDescriptor(HTMLElement.prototype,'style');
   }
 
   // Hook into existing toast usage: when display is set to block, add fx-show then remove later
@@ -3335,17 +3341,31 @@ const cancel = document.getElementById('loginCancel');
     }
   }
 
-  window.showAppNotice = function(title, subtitle){
-    var n = document.getElementById('appNotice');
-    if(!n) return;
-    var main = n.querySelector('.main') || n;
-    var sub  = n.querySelector('.sub');
-    if(main) main.textContent = title || '';
-    if(sub) sub.textContent = subtitle || '';
-    n.classList.add('show');
-    clearTimeout(n.__t);
-    n.__t = setTimeout(function(){ n.classList.remove('show'); }, 1400);
-  };
+  
+window.showAppNotice = function(title, subtitle){
+  var n = document.getElementById('appNotice');
+  if(!n) return;
+
+  var main = n.querySelector('.main') || n;
+  var sub  = n.querySelector('.sub');
+
+  main.textContent = title || '';
+  if(sub) sub.textContent = subtitle || '';
+
+  // 新风格：更轻、更像系统 Toast
+  n.style.top = '22%';
+  n.style.background = 'rgba(34,197,94,.95)';
+  n.style.borderRadius = '18px';
+  n.style.boxShadow = '0 12px 40px rgba(0,0,0,.18)';
+  n.style.fontWeight = '600';
+
+  n.classList.add('show');
+  clearTimeout(n.__t);
+  n.__t = setTimeout(function(){
+    n.classList.remove('show');
+  }, 1200);
+};
+
 
   document.addEventListener('DOMContentLoaded', function(){
     ensureLoginModalParent();
