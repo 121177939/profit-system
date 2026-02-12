@@ -1025,6 +1025,12 @@ body.login-open .cloud-addon-card{ display:none !important; }
 }
 </style>
 
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
 </head>
 <body>
 
@@ -3617,6 +3623,15 @@ stroke-width：1.8
 状态：正式交接版本
 -->
 <!-- ================== 文件交接记录更新结束 ================== -->
+
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(console.error);
+  });
+}
+</script>
 
 </body>
 </html>
