@@ -3105,6 +3105,122 @@ const btnRefresh = document.getElementById("adminRefresh");
 }
 </style>
 
+
+<style>
+/* === A2：强制水平居中修复（解决“偏右”） === */
+#loginBox,
+.login-box{
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: translate(-50%, -50%) translateY(60px) !important;
+}
+.login-box.fx-open{
+  transform: translate(-50%, -50%) translateY(60px) !important;
+}
+</style>
+
+
+<style>
+/* === A-稳定版：不受任何父级 transform/scale 影响（把遮罩/弹窗挂到 body，遮罩 flex 居中） === */
+#loginBackdrop{
+  position: fixed !important;
+  inset: 0 !important;
+  display: none !important;
+  z-index: 999998 !important;
+  background: rgba(0,0,0,.18) !important;
+  backdrop-filter: blur(2px) !important;
+
+  /* flex 负责居中 */
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* 往下挪一点：只影响垂直方向 */
+#loginBackdrop.active{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#loginBox,
+.login-box{
+  /* 弹窗本体交给 backdrop flex 定位 */
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: translateY(60px) !important; /* A：下移 */
+  width: min(92vw, 360px) !important;
+  max-height: calc(100dvh - 120px) !important;
+  overflow: auto !important;
+}
+
+/* 禁掉“开合动画”里可能带的 translate(-50%,-50%) */
+.login-box.fx-open,
+.login-box.fx-close{
+  transform: translateY(60px) !important;
+}
+</style>
+
+<script>
+/* === A-稳定版：打开登录时把遮罩/弹窗都挂到 body，避免被任何祖先 transform 影响 === */
+(function(){
+  function ensureMount(){
+    var bd  = document.getElementById('loginBackdrop');
+    var box = document.getElementById('loginBox');
+    if(!bd || !box) return;
+
+    // 关键：遮罩必须是 body 的直接子元素
+    if(bd.parentNode !== document.body){
+      document.body.appendChild(bd);
+    }
+    // 弹窗放到遮罩里
+    if(box.parentNode !== bd){
+      bd.appendChild(box);
+    }
+  }
+
+  var oldToggle = window.toggleLoginBox;
+  window.toggleLoginBox = function(show){
+    ensureMount();
+    var bd  = document.getElementById('loginBackdrop');
+    var box = document.getElementById('loginBox');
+    if(!bd || !box){
+      if(typeof oldToggle === 'function') return oldToggle(show);
+      return;
+    }
+
+    // 计算目标状态
+    var isOpen = (getComputedStyle(box).display !== 'none');
+    var shouldOpen = (show===undefined) ? (!isOpen) : !!show;
+
+    box.style.display = shouldOpen ? 'block' : 'none';
+    bd.classList.toggle('active', shouldOpen);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    ensureMount();
+  }, {once:true});
+
+  // 点遮罩关闭
+  document.addEventListener('click', function(e){
+    var bd = document.getElementById('loginBackdrop');
+    if(!bd) return;
+    if(e.target === bd){
+      window.toggleLoginBox(false);
+    }
+  }, true);
+})();
+</script>
+
 </body>
 </html>
 
